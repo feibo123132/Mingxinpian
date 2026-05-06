@@ -1,32 +1,45 @@
-import React, { useState, useEffect } from 'react';
-// 替换图标为节日emoji
-import Wheel from './components/Wheel';
+import { useEffect, useState } from 'react';
+import BgmController from './components/BgmController';
+import HeaderMenu from './components/HeaderMenu';
 import ResultModal from './components/ResultModal';
 import SettingsModal from './components/SettingsModal';
-import BgmController from './components/BgmController';
+import Wheel from './components/Wheel';
 import useLocalStorage from './hooks/useLocalStorage';
-import { Postcard, defaultCards } from './data/defaultCards';
+import { ACTIVE_THEME_STORAGE_KEY, MAX_POSTCARDS, loadCardsForTheme, saveCardsForTheme } from './themes/storage';
+import { DEFAULT_THEME_ID, builtinThemes, getThemeById } from './themes';
+import type { Postcard } from './themes';
 
 function App() {
-  const [cards, setCards] = useLocalStorage<Postcard[]>('postcard-config', defaultCards);
+  const [activeThemeId, setActiveThemeId] = useLocalStorage<string>(ACTIVE_THEME_STORAGE_KEY, DEFAULT_THEME_ID);
+  const activeTheme = getThemeById(activeThemeId);
+  const [cards, setCards] = useState<Postcard[]>(() => loadCardsForTheme(activeTheme.id, activeTheme.cards));
   const [selectedCard, setSelectedCard] = useState<Postcard | null>(null);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   useEffect(() => {
-    // Initialize with default cards if localStorage is empty
-    if (!cards || cards.length === 0) {
-      setCards(defaultCards);
+    if (activeTheme.id !== activeThemeId) {
+      setActiveThemeId(activeTheme.id);
     }
+  }, [activeTheme.id, activeThemeId, setActiveThemeId]);
+
+  useEffect(() => {
+    setCards(loadCardsForTheme(activeTheme.id, activeTheme.cards));
+    setSelectedCard(null);
+    setIsResultModalOpen(false);
+  }, [activeTheme]);
+
+  useEffect(() => {
     try {
-      (cards ?? []).slice(0, 5).forEach((c) => {
-        const img = new Image();
-        img.decoding = 'async' as any;
-        img.loading = 'eager' as any;
-        img.src = c.image;
+      cards.slice(0, MAX_POSTCARDS).forEach((card) => {
+        if (!card.image) return;
+        const image = new Image();
+        image.decoding = 'async';
+        image.loading = 'eager';
+        image.src = card.image;
       });
     } catch {}
-  }, []);
+  }, [cards]);
 
   const handleSpinComplete = (card: Postcard) => {
     setSelectedCard(card);
@@ -39,61 +52,64 @@ function App() {
   };
 
   const handleSaveCards = (newCards: Postcard[]) => {
-    setCards(newCards);
+    const nextCards = newCards.slice(0, MAX_POSTCARDS);
+    setCards(nextCards);
+    saveCardsForTheme(activeTheme.id, nextCards);
   };
 
-  const cards5 = (cards ?? []).slice(0, 5);
+  const wheelCards = cards.slice(0, MAX_POSTCARDS);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-orange-50 flex flex-col items-center justify-center p-4">
+    <div
+      className="flex min-h-screen flex-col items-center justify-center p-4 transition-colors duration-500"
+      style={{ background: activeTheme.background, color: activeTheme.bodyColor }}
+    >
       <div className="app-container w-full">
-        {/* Header */}
-        <div className="w-full max-w-md mb-8 relative">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <span role="img" aria-label="圣诞老人" className="text-3xl">🎅</span>
-            <h1 className="text-3xl font-bold text-gray-800" style={{ fontFamily: 'Source Han Sans CN, sans-serif' }}>圣诞大转盘</h1>
-          </div>
-          <p className="text-center text-gray-600" style={{ fontSize: '16px' }}>点击社团LOGO按钮，抽取你的幸运明信片！</p>
-          
-          {/* Settings Button */}
-          <button
-            onClick={() => setIsSettingsModalOpen(true)}
-            className="absolute top-0 right-0 p-2 text-gray-600 hover:text-gray-800 transition-colors animate-breath"
-            aria-label="设置"
-            title="设置"
-          >
-            <span role="img" aria-label="圣诞树" className="text-xl">🎄</span>
-          </button>
-          <BgmController />
-        </div>
+        <div className="relative mb-8 w-full max-w-md">
+          <BgmController tracks={activeTheme.audio.bgm} accentColor={activeTheme.accentColor} />
 
-        {/* Wheel Component */}
-        <div className="w-full max-w-sm">
-          <Wheel 
-            cards={cards5} 
-            onSpinComplete={handleSpinComplete} 
+          <HeaderMenu
+            themes={builtinThemes}
+            activeTheme={activeTheme}
+            onSelectTheme={setActiveThemeId}
+            onOpenSettings={() => setIsSettingsModalOpen(true)}
           />
+
+          <div className="mb-2 flex items-center justify-center gap-2 px-20 text-center">
+            <span role="img" aria-label={activeTheme.shortName} className="text-3xl">
+              {activeTheme.icon}
+            </span>
+            <h1 className="text-3xl font-bold" style={{ color: activeTheme.titleColor }}>
+              {activeTheme.title}
+            </h1>
+          </div>
+          <p className="text-center text-base" style={{ color: activeTheme.bodyColor }}>
+            {activeTheme.subtitle}
+          </p>
         </div>
 
-        {/* Result Modal */}
+        <div className="w-full max-w-sm">
+          <Wheel cards={wheelCards} theme={activeTheme} onSpinComplete={handleSpinComplete} />
+        </div>
+
         <ResultModal
           card={selectedCard}
+          theme={activeTheme}
           isOpen={isResultModalOpen}
           onClose={() => setIsResultModalOpen(false)}
           onSpinAgain={handleSpinAgain}
         />
 
-        {/* Settings Modal */}
         <SettingsModal
           isOpen={isSettingsModalOpen}
+          theme={activeTheme}
+          cards={wheelCards}
           onClose={() => setIsSettingsModalOpen(false)}
-          cards={cards5}
           onSave={handleSaveCards}
         />
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-gray-500 text-sm">
-          <p>2025年快结束了，这一年你又经历哪些难忘的瞬间呢？</p>
+        <div className="mt-8 text-center text-sm" style={{ color: activeTheme.mutedColor }}>
+          <p>{activeTheme.footer}</p>
         </div>
       </div>
     </div>

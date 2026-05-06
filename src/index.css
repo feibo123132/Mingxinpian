@@ -61,3 +61,8 @@ body {
 .animate-breath {
   animation: breath 3.5s ease-in-out infinite;
 }
+
+@keyframes music-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

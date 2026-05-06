@@ -1,51 +1,58 @@
 import React from 'react';
-import { Postcard } from '../data/defaultCards';
+import type { AppTheme, Postcard } from '../themes';
 
 interface ResultModalProps {
   card: Postcard | null;
+  theme: AppTheme;
   isOpen: boolean;
   onClose: () => void;
   onSpinAgain: () => void;
 }
 
-const ResultModal: React.FC<ResultModalProps> = ({ card, isOpen, onClose, onSpinAgain }) => {
+const ResultModal: React.FC<ResultModalProps> = ({ card, theme, isOpen, onClose, onSpinAgain }) => {
   if (!isOpen || !card) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-        {/* Image */}
-        <div className="flex justify-center mb-4">
-          <img 
-            src={card.image} 
-            alt={card.title}
-            decoding="async"
-            loading="eager"
-            className="w-60 h-60 object-cover rounded-lg shadow-md"
-          />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="mx-4 w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: theme.surface }}>
+        <div className="mb-4 flex justify-center">
+          {card.image ? (
+            <img
+              src={card.image}
+              alt={card.title}
+              decoding="async"
+              loading="eager"
+              className="h-60 w-60 rounded-xl object-cover shadow-md"
+            />
+          ) : (
+            <div
+              className="flex h-60 w-60 items-center justify-center rounded-xl text-sm"
+              style={{ background: '#f3f4f6', color: theme.mutedColor }}
+            >
+              暂无图片
+            </div>
+          )}
         </div>
-        
-        {/* Title */}
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-3">
+
+        <h2 className="mb-3 text-center text-2xl font-bold" style={{ color: theme.titleColor }}>
           {card.title}
         </h2>
-        
-        {/* Content */}
-        <p className="text-base text-center text-gray-600 mb-6 leading-relaxed">
+
+        <p className="mb-6 text-center text-base leading-relaxed" style={{ color: theme.bodyColor }}>
           {card.content}
         </p>
-        
-        {/* Buttons */}
+
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+            className="flex-1 rounded-lg bg-gray-200 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-300"
           >
             关闭
           </button>
           <button
             onClick={onSpinAgain}
-            className="flex-1 py-3 px-4 bg-[#FFD748] text-white rounded-lg font-medium hover:bg-yellow-400 transition-colors"
+            className="flex-1 rounded-lg px-4 py-3 font-semibold transition-transform hover:scale-[1.02]"
+            style={{ background: theme.accentColor, color: theme.accentTextColor }}
           >
             再抽一次
           </button>
