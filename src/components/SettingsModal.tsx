@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { resolveAssetPath } from '../lib/assetPaths';
 import { MAX_POSTCARDS, MIN_POSTCARDS } from '../themes/storage';
 import type { AppTheme, Postcard } from '../themes';
 
@@ -142,7 +143,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, theme, cards, onC
                   <label className="mb-1 block text-sm font-medium text-gray-600">图片</label>
                   <div className="flex flex-wrap items-center gap-4">
                     {card.image ? (
-                      <img src={card.image} alt={card.title} className="h-20 w-20 rounded-lg border object-cover" />
+                      <img
+                        src={resolveAssetPath(card.image)}
+                        alt={card.title}
+                        className="h-20 w-20 rounded-lg border object-cover"
+                      />
                     ) : (
                       <div className="flex h-20 w-20 items-center justify-center rounded-lg border bg-white text-xs text-gray-400">
                         无图

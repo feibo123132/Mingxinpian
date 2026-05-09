@@ -1,22 +1,110 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { resolveAssetPath } from '../lib/assetPaths';
+import { WHEEL_GRADIENT_START_OFFSET, getWheelSelectedIndex } from '../lib/wheelSelection';
 import { useAudioBus } from '../store/audioBus';
 import type { AppTheme, Postcard } from '../themes';
 
 interface WheelProps {
   cards: Postcard[];
   theme: AppTheme;
+  spinRequestId?: number;
   onSpinComplete: (card: Postcard) => void;
 }
 
-const Wheel: React.FC<WheelProps> = ({ cards, theme, onSpinComplete }) => {
+const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinComplete }) => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
+  const [startImageSrc, setStartImageSrc] = useState('');
+  const [startImageFallbackTried, setStartImageFallbackTried] = useState(false);
   const wheelRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const selectionAudiosRef = useRef<HTMLAudioElement[]>([]);
-  const audioUnlockedRef = useRef(false);
-  const lastSelectedIndexRef = useRef<number>(0);
+  const resultAudioRef = useRef<HTMLAudioElement | null>(null);
+  const lastHandledSpinRequestRef = useRef(spinRequestId);
+
+  const fallbackStartImage = useMemo(() => resolveAssetPath('/images/go-btn.png'), []);
+
+  const startAudioEffect = useCallback(() => {
+    try {
+      useAudioBus.getState().startEffect();
+    } catch {
+      // Audio bus failures should not block the wheel interaction.
+    }
+  }, []);
+
+  const endAudioEffect = useCallback(() => {
+    try {
+      useAudioBus.getState().endEffect();
+    } catch {
+      // Audio bus failures should not block the wheel interaction.
+    }
+  }, []);
+
+  const createResultAudio = useCallback((card: Postcard) => {
+    const audio = new Audio(resolveAssetPath(card.sound || '/audio/card1.mp3'));
+    audio.preload = 'auto';
+    audio.loop = false;
+    return audio;
+  }, []);
+
+  const stopResultAudio = useCallback(() => {
+    const resultAudio = resultAudioRef.current;
+    if (!resultAudio) return;
+
+    try {
+      resultAudio.pause();
+      resultAudio.currentTime = 0;
+      resultAudio.onended = null;
+    } catch {
+      // Ignore browsers that reject resetting an unloaded audio element.
+    }
+  }, []);
+
+  const prepareSelectedCardSound = useCallback((card: Postcard) => {
+    stopResultAudio();
+
+    const resultAudio = createResultAudio(card);
+    resultAudioRef.current = resultAudio;
+
+    try {
+      resultAudio.muted = true;
+      resultAudio.volume = 0;
+      resultAudio
+        .play()
+        .then(() => {
+          resultAudio.pause();
+          resultAudio.currentTime = 0;
+          resultAudio.muted = false;
+          resultAudio.volume = 1;
+        })
+        .catch(() => {
+          resultAudio.muted = false;
+          resultAudio.volume = 1;
+        });
+    } catch {
+      resultAudio.muted = false;
+      resultAudio.volume = 1;
+    }
+  }, [createResultAudio, stopResultAudio]);
+
+  const playSelectedCardSound = useCallback((card: Postcard) => {
+    const selectionAudio = resultAudioRef.current ?? createResultAudio(card);
+    resultAudioRef.current = selectionAudio;
+
+    try {
+      selectionAudio.pause();
+      selectionAudio.currentTime = 0;
+      selectionAudio.muted = false;
+      selectionAudio.volume = 1;
+      selectionAudio.play().catch(() => undefined);
+      startAudioEffect();
+      selectionAudio.onended = () => {
+        endAudioEffect();
+        selectionAudio.onended = null;
+      };
+    } catch {
+      // Ignore result audio playback failures; the visual result should still appear.
+    }
+  }, [createResultAudio, endAudioEffect, startAudioEffect]);
 
   useEffect(() => {
     const audio = new Audio(resolveAssetPath(theme.audio.spin));
@@ -24,124 +112,117 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, onSpinComplete }) => {
     audio.loop = true;
     audioRef.current = audio;
 
-    selectionAudiosRef.current = cards.map((card, index) => {
-      const selectionAudio = new Audio(resolveAssetPath(card.sound || `/audio/card${index + 1}.mp3`));
-      selectionAudio.preload = 'auto';
-      selectionAudio.loop = false;
-      return selectionAudio;
-    });
-
     return () => {
       try {
         audio.pause();
         audio.onended = null;
-      } catch {}
+      } catch {
+        // Ignore browsers that reject resetting an unloaded audio element.
+      }
 
-      selectionAudiosRef.current.forEach((selectionAudio) => {
-        try {
-          selectionAudio.pause();
-          selectionAudio.onended = null;
-        } catch {}
-      });
+      stopResultAudio();
     };
-  }, [cards, theme.audio.spin]);
+  }, [stopResultAudio, theme.audio.spin]);
 
-  const spin = () => {
+  useEffect(() => {
+    if (!theme.startButton.image) {
+      setStartImageSrc('');
+      setStartImageFallbackTried(false);
+      return;
+    }
+
+    setStartImageSrc(resolveAssetPath(theme.startButton.image));
+    setStartImageFallbackTried(false);
+  }, [theme.startButton.image]);
+
+  const spin = useCallback(() => {
     if (isSpinning || !cards.length) return;
 
     setIsSpinning(true);
 
-    if (!audioUnlockedRef.current) {
-      selectionAudiosRef.current.forEach((audio) => {
-        try {
-          audio.muted = true;
-          audio.play().then(() => audio.pause()).catch(() => {});
-          audio.muted = false;
-        } catch {}
-      });
-      audioUnlockedRef.current = true;
-    }
+    const minRotation = 1800;
+    const maxRotation = 3000;
+    const randomRotation = Math.floor(Math.random() * (maxRotation - minRotation + 1)) + minRotation;
+    const finalRotation = rotation + randomRotation;
+    const selectedIndex = getWheelSelectedIndex(finalRotation, cards.length);
+    const selectedCard = cards[selectedIndex];
+
+    prepareSelectedCardSound(selectedCard);
 
     try {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
         audioRef.current.loop = true;
         audioRef.current.volume = 0.9;
-        audioRef.current.play().catch(() => {});
-        try {
-          useAudioBus.getState().startEffect();
-        } catch {}
+        audioRef.current.play().catch(() => undefined);
+        startAudioEffect();
         audioRef.current.onended = () => {
-          try {
-            useAudioBus.getState().endEffect();
-          } catch {}
+          endAudioEffect();
           if (audioRef.current) audioRef.current.onended = null;
         };
       }
-    } catch {}
-
-    const minRotation = 1800;
-    const maxRotation = 3000;
-    const randomRotation = Math.floor(Math.random() * (maxRotation - minRotation + 1)) + minRotation;
-    const finalRotation = rotation + randomRotation;
+    } catch {
+      // Spin audio is decorative; keep the wheel usable if playback fails.
+    }
 
     setRotation(finalRotation);
-
-    const segmentAngle = 360 / cards.length;
-    const normalizedAngle = (360 - (finalRotation % 360)) % 360;
-    const selectedIndex = Math.floor(normalizedAngle / segmentAngle);
-    const selectedCard = cards[selectedIndex];
-    lastSelectedIndexRef.current = selectedIndex;
 
     const endHandler = () => {
       setIsSpinning(false);
 
       if (audioRef.current) {
         audioRef.current.loop = false;
-        audioRef.current.onended = () => {
-          try {
-            useAudioBus.getState().endEffect();
-          } catch {}
-          if (audioRef.current) audioRef.current.onended = null;
-        };
-      }
-
-      const selectionAudio = selectionAudiosRef.current[lastSelectedIndexRef.current];
-      if (selectionAudio) {
         try {
-          selectionAudio.currentTime = 0;
-          selectionAudio.play().catch(() => {});
-          try {
-            useAudioBus.getState().startEffect();
-          } catch {}
-          selectionAudio.onended = () => {
-            try {
-              useAudioBus.getState().endEffect();
-            } catch {}
-            selectionAudio.onended = null;
-          };
-        } catch {}
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          audioRef.current.onended = null;
+          endAudioEffect();
+        } catch {
+          // Ignore browsers that reject resetting an unloaded audio element.
+        }
       }
 
+      playSelectedCardSound(selectedCard);
       onSpinComplete(selectedCard);
     };
 
     if (wheelRef.current) {
       wheelRef.current.addEventListener('transitionend', endHandler, { once: true });
     }
-  };
+  }, [
+    cards,
+    endAudioEffect,
+    isSpinning,
+    onSpinComplete,
+    playSelectedCardSound,
+    prepareSelectedCardSound,
+    rotation,
+    startAudioEffect,
+  ]);
+
+  useEffect(() => {
+    if (spinRequestId === lastHandledSpinRequestRef.current) return;
+
+    lastHandledSpinRequestRef.current = spinRequestId;
+    spin();
+  }, [spinRequestId, spin]);
 
   const segmentAngle = cards.length ? 360 / cards.length : 360;
+  const segmentColors =
+    theme.wheel.colors.length >= cards.length
+      ? theme.wheel.colors.slice(0, cards.length)
+      : Array.from({ length: cards.length }, (_, index) => {
+          const hue = Math.round((360 / cards.length) * index);
+          return `hsl(${hue} 74% 64%)`;
+        });
   const gradientStops = cards
     .map((_, index) => {
       const start = index * segmentAngle;
       const end = (index + 1) * segmentAngle;
-      const color = theme.wheel.colors[index % theme.wheel.colors.length];
+      const color = segmentColors[index];
       return `${color} ${start}deg ${end}deg`;
     })
     .join(', ');
-
-  const startImage = theme.startButton.image ? resolveAssetPath(theme.startButton.image) : '';
 
   return (
     <div className="relative flex flex-col items-center">
@@ -169,7 +250,7 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, onSpinComplete }) => {
             const desiredPct = 50 * 0.6;
             const rPct = Math.min(safeMaxPct, Math.max(safeMinPct, desiredPct));
             const rPx = radiusPx * (rPct / 50);
-            const labelRotation = ((midAngle % 360) + 360) % 360;
+            const labelRotation = (((midAngle + WHEEL_GRADIENT_START_OFFSET) % 360) + 360) % 360;
             const fs = titleLen >= 5 ? 14 : 16;
 
             return (
@@ -238,8 +319,20 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, onSpinComplete }) => {
         }}
         aria-label={theme.startButton.ariaLabel}
       >
-        {startImage ? (
-          <img src={startImage} alt="" className="block h-full w-full object-cover" />
+        {startImageSrc ? (
+          <img
+            src={startImageSrc}
+            alt=""
+            className="block h-full w-full object-contain p-1"
+            onError={() => {
+              if (!startImageFallbackTried) {
+                setStartImageFallbackTried(true);
+                setStartImageSrc(fallbackStartImage);
+                return;
+              }
+              setStartImageSrc('');
+            }}
+          />
         ) : (
           <span className="flex flex-col items-center text-center font-black leading-none">
             <span className="text-xl">{theme.startButton.label}</span>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { resolveAssetPath } from '../lib/assetPaths';
 import type { AppTheme, Postcard } from '../themes';
 
 interface ResultModalProps {
@@ -18,15 +19,15 @@ const ResultModal: React.FC<ResultModalProps> = ({ card, theme, isOpen, onClose,
         <div className="mb-4 flex justify-center">
           {card.image ? (
             <img
-              src={card.image}
+              src={resolveAssetPath(card.image)}
               alt={card.title}
               decoding="async"
               loading="eager"
-              className="h-60 w-60 rounded-xl object-cover shadow-md"
+              className="aspect-[4/3] w-full rounded-xl object-cover shadow-md"
             />
           ) : (
             <div
-              className="flex h-60 w-60 items-center justify-center rounded-xl text-sm"
+              className="flex aspect-[4/3] w-full items-center justify-center rounded-xl text-sm"
               style={{ background: '#f3f4f6', color: theme.mutedColor }}
             >
               暂无图片

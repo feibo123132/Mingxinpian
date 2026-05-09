@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import BgmController from './components/BgmController';
 import HeaderMenu from './components/HeaderMenu';
 import ResultModal from './components/ResultModal';
 import SettingsModal from './components/SettingsModal';
 import Wheel from './components/Wheel';
 import useLocalStorage from './hooks/useLocalStorage';
+import { resolveAssetPath } from './lib/assetPaths';
 import { ACTIVE_THEME_STORAGE_KEY, MAX_POSTCARDS, loadCardsForTheme, saveCardsForTheme } from './themes/storage';
 import { DEFAULT_THEME_ID, builtinThemes, getThemeById } from './themes';
 import type { Postcard } from './themes';
@@ -16,6 +17,7 @@ function App() {
   const [selectedCard, setSelectedCard] = useState<Postcard | null>(null);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [spinRequestId, setSpinRequestId] = useState(0);
 
   useEffect(() => {
     if (activeTheme.id !== activeThemeId) {
@@ -36,9 +38,11 @@ function App() {
         const image = new Image();
         image.decoding = 'async';
         image.loading = 'eager';
-        image.src = card.image;
+        image.src = resolveAssetPath(card.image);
       });
-    } catch {}
+    } catch {
+      // Image preloading is an enhancement; rendering can continue without it.
+    }
   }, [cards]);
 
   const handleSpinComplete = (card: Postcard) => {
@@ -49,6 +53,7 @@ function App() {
   const handleSpinAgain = () => {
     setIsResultModalOpen(false);
     setSelectedCard(null);
+    setSpinRequestId((requestId) => requestId + 1);
   };
 
   const handleSaveCards = (newCards: Postcard[]) => {
@@ -57,7 +62,7 @@ function App() {
     saveCardsForTheme(activeTheme.id, nextCards);
   };
 
-  const wheelCards = cards.slice(0, MAX_POSTCARDS);
+  const wheelCards = useMemo(() => cards.slice(0, MAX_POSTCARDS), [cards]);
 
   return (
     <div
@@ -89,7 +94,12 @@ function App() {
         </div>
 
         <div className="w-full max-w-sm">
-          <Wheel cards={wheelCards} theme={activeTheme} onSpinComplete={handleSpinComplete} />
+          <Wheel
+            cards={wheelCards}
+            theme={activeTheme}
+            spinRequestId={spinRequestId}
+            onSpinComplete={handleSpinComplete}
+          />
         </div>
 
         <ResultModal

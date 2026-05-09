@@ -1,5 +1,13 @@
-const VERSION = 'v1';
+const VERSION = 'v2';
 const RUNTIME_CACHE = `runtime-${VERSION}`;
+const CACHEABLE_RESPONSE_TYPES = ['image/', 'audio/'];
+
+const isCacheableAssetResponse = (res) => {
+  const contentType = res.headers.get('content-type') || '';
+
+  return res.status === 200 && res.type === 'basic' && CACHEABLE_RESPONSE_TYPES.some((type) => contentType.startsWith(type));
+};
+
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
 });
@@ -18,10 +26,13 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.open(RUNTIME_CACHE).then(async (cache) => {
       const cached = await cache.match(req);
-      if (cached) return cached;
+      if (cached && isCacheableAssetResponse(cached)) return cached;
+      if (cached) {
+        try { await cache.delete(req); } catch {}
+      }
       try {
         const res = await fetch(req);
-        if (res.status === 200 && res.type === 'basic') {
+        if (isCacheableAssetResponse(res)) {
           try { await cache.put(req, res.clone()); } catch {}
         }
         return res;

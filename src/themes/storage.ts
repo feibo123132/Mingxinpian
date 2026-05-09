@@ -1,3 +1,4 @@
+import { normalizePublicAssetPath } from '../lib/assetPaths.ts';
 import type { Postcard } from './types.ts';
 
 export const ACTIVE_THEME_STORAGE_KEY = 'active-theme-id';
@@ -19,7 +20,33 @@ const createBlankCard = (index: number, fallback: Postcard[]): Postcard => {
   };
 };
 
-const normalizeCards = (cards: unknown, fallback: Postcard[]) => {
+const WEB_LOADABLE_IMAGE_RE = /^(https?:|data:|blob:|file:)/i;
+const WINDOWS_ABSOLUTE_PATH_RE = /^[a-z]:\//i;
+
+const normalizeSavedImage = (savedImage: string | undefined, baseImage: string) => {
+  if (!savedImage) return baseImage;
+
+  const normalizedImage = normalizePublicAssetPath(savedImage);
+  if (WEB_LOADABLE_IMAGE_RE.test(normalizedImage)) return normalizedImage;
+  if (WINDOWS_ABSOLUTE_PATH_RE.test(normalizedImage)) return baseImage;
+  if (normalizedImage.startsWith('/images/') || normalizedImage.startsWith('/assets/')) return normalizedImage;
+  if (normalizedImage.startsWith('/')) return normalizedImage;
+
+  return baseImage;
+};
+
+const normalizeSavedSound = (
+  themeId: string,
+  savedSound: string | undefined,
+  _cardIndex: number,
+  baseSound: string,
+) => {
+  if (themeId === 'summer') return baseSound;
+
+  return savedSound || baseSound;
+};
+
+const normalizeCards = (themeId: string, cards: unknown, fallback: Postcard[]) => {
   if (!Array.isArray(cards)) return fallback;
 
   return cards.slice(0, MAX_POSTCARDS).map((savedCard, index) => {
@@ -34,8 +61,8 @@ const normalizeCards = (cards: unknown, fallback: Postcard[]) => {
       id: partial.id || baseCard.id,
       title: partial.title || baseCard.title,
       content: partial.content || baseCard.content,
-      image: partial.image || baseCard.image,
-      sound: partial.sound || baseCard.sound,
+      image: normalizeSavedImage(partial.image, baseCard.image),
+      sound: normalizeSavedSound(themeId, partial.sound, index, baseCard.sound),
     };
   });
 };
@@ -52,9 +79,9 @@ export const loadCardsForTheme = (themeId: string, fallback: Postcard[]) => {
 
     if (!raw) return fallback;
 
-    const normalized = normalizeCards(JSON.parse(raw), fallback);
+    const normalized = normalizeCards(themeId, JSON.parse(raw), fallback);
 
-    if (!saved && legacySaved) {
+    if (saved || legacySaved) {
       window.localStorage.setItem(storageKey, JSON.stringify(normalized));
     }
 

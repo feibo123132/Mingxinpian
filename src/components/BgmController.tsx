@@ -36,7 +36,9 @@ const BgmController: React.FC<BgmControllerProps> = ({ tracks, accentColor }) =>
           audio.pause();
           audio.currentTime = 0;
           audio.onended = null;
-        } catch {}
+        } catch {
+          // Ignore browsers that reject resetting an unloaded audio element.
+        }
       });
     };
   }, [audios]);
@@ -45,9 +47,11 @@ const BgmController: React.FC<BgmControllerProps> = ({ tracks, accentColor }) =>
     audios.forEach((audio) => {
       try {
         audio.muted = true;
-        audio.play().then(() => audio.pause()).catch(() => {});
+        audio.play().then(() => audio.pause()).catch(() => undefined);
         audio.muted = false;
-      } catch {}
+      } catch {
+        // Background music is optional; keep the UI usable if autoplay fails.
+      }
     });
   }, [audios]);
 
@@ -96,21 +100,25 @@ const BgmController: React.FC<BgmControllerProps> = ({ tracks, accentColor }) =>
             audio.pause();
             audio.currentTime = 0;
             audio.onended = null;
-          } catch {}
+          } catch {
+            // Ignore browsers that reject resetting an unloaded audio element.
+          }
         }
       });
 
       const audio = audios[idx];
       try {
         audio.volume = activeCount > 0 ? duckVol : baseVol;
-        audio.play().catch(() => {});
+        audio.play().catch(() => undefined);
         audio.onended = () => {
           const choices = audios.map((_, i) => i).filter((i) => i !== idx);
           const next = choices[Math.floor(Math.random() * choices.length)] ?? idx;
           playIndex(next);
         };
         setPlaying(true);
-      } catch {}
+      } catch {
+        // Background music is optional; keep the UI usable if playback fails.
+      }
     },
     [activeCount, audios],
   );
@@ -126,7 +134,9 @@ const BgmController: React.FC<BgmControllerProps> = ({ tracks, accentColor }) =>
     if (audio) {
       try {
         audio.pause();
-      } catch {}
+      } catch {
+        // Ignore browsers that reject pausing an unloaded audio element.
+      }
     }
     setPlaying(false);
   };
