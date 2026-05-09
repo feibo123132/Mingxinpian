@@ -66,11 +66,11 @@ function App() {
 
   return (
     <div
-      className="flex min-h-screen flex-col items-center justify-center p-4 transition-colors duration-500"
+      className="flex min-h-screen flex-col items-center p-4 transition-colors duration-500"
       style={{ background: activeTheme.background, color: activeTheme.bodyColor }}
     >
-      <div className="app-container w-full">
-        <div className="relative mb-8 w-full max-w-md">
+      <div className="app-container flex min-h-[calc(100vh-2rem)] w-full flex-col items-center">
+        <header className="relative w-full max-w-md pt-5">
           <BgmController tracks={activeTheme.audio.bgm} accentColor={activeTheme.accentColor} />
 
           <HeaderMenu
@@ -91,16 +91,16 @@ function App() {
           <p className="text-center text-base" style={{ color: activeTheme.bodyColor }}>
             {activeTheme.subtitle}
           </p>
-        </div>
+        </header>
 
-        <div className="w-full max-w-sm">
+        <main className="flex w-full max-w-sm flex-1 items-center justify-center py-8">
           <Wheel
             cards={wheelCards}
             theme={activeTheme}
             spinRequestId={spinRequestId}
             onSpinComplete={handleSpinComplete}
           />
-        </div>
+        </main>
 
         <ResultModal
           card={selectedCard}
@@ -118,9 +118,9 @@ function App() {
           onSave={handleSaveCards}
         />
 
-        <div className="mt-8 text-center text-sm" style={{ color: activeTheme.mutedColor }}>
+        <footer className="w-full pb-8 text-center text-sm" style={{ color: activeTheme.mutedColor }}>
           <p>{activeTheme.footer}</p>
-        </div>
+        </footer>
       </div>
     </div>
   );

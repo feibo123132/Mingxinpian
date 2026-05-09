@@ -19,6 +19,7 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
   const wheelRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const resultAudioRef = useRef<HTMLAudioElement | null>(null);
+  const spinAudioActiveRef = useRef(false);
   const lastHandledSpinRequestRef = useRef(spinRequestId);
 
   const fallbackStartImage = useMemo(() => resolveAssetPath('/images/go-btn.png'), []);
@@ -38,6 +39,20 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
       // Audio bus failures should not block the wheel interaction.
     }
   }, []);
+
+  const markSpinAudioStarted = useCallback(() => {
+    if (spinAudioActiveRef.current) return;
+
+    spinAudioActiveRef.current = true;
+    startAudioEffect();
+  }, [startAudioEffect]);
+
+  const markSpinAudioEnded = useCallback(() => {
+    if (!spinAudioActiveRef.current) return;
+
+    spinAudioActiveRef.current = false;
+    endAudioEffect();
+  }, [endAudioEffect]);
 
   const createResultAudio = useCallback((card: Postcard) => {
     const audio = new Audio(resolveAssetPath(card.sound || '/audio/card1.mp3'));
@@ -106,6 +121,45 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     }
   }, [createResultAudio, endAudioEffect, startAudioEffect]);
 
+  const startSpinAudio = useCallback(() => {
+    const spinAudio = audioRef.current;
+    if (!spinAudio) return;
+
+    try {
+      if (spinAudioActiveRef.current) {
+        markSpinAudioEnded();
+      }
+
+      spinAudio.pause();
+      spinAudio.currentTime = 0;
+      spinAudio.loop = true;
+      spinAudio.volume = 0.9;
+      spinAudio.onended = null;
+      spinAudio.play().catch(() => markSpinAudioEnded());
+      markSpinAudioStarted();
+    } catch {
+      markSpinAudioEnded();
+    }
+  }, [markSpinAudioEnded, markSpinAudioStarted]);
+
+  const finishSpinAudioLoop = useCallback(() => {
+    const spinAudio = audioRef.current;
+    if (!spinAudio || !spinAudioActiveRef.current) return;
+
+    spinAudio.loop = false;
+    spinAudio.onended = () => {
+      markSpinAudioEnded();
+
+      try {
+        spinAudio.currentTime = 0;
+      } catch {
+        // Ignore browsers that reject resetting an unloaded audio element.
+      }
+
+      spinAudio.onended = null;
+    };
+  }, [markSpinAudioEnded]);
+
   useEffect(() => {
     const audio = new Audio(resolveAssetPath(theme.audio.spin));
     audio.preload = 'auto';
@@ -120,9 +174,10 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
         // Ignore browsers that reject resetting an unloaded audio element.
       }
 
+      markSpinAudioEnded();
       stopResultAudio();
     };
-  }, [stopResultAudio, theme.audio.spin]);
+  }, [markSpinAudioEnded, stopResultAudio, theme.audio.spin]);
 
   useEffect(() => {
     if (!theme.startButton.image) {
@@ -148,40 +203,14 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     const selectedCard = cards[selectedIndex];
 
     prepareSelectedCardSound(selectedCard);
-
-    try {
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.loop = true;
-        audioRef.current.volume = 0.9;
-        audioRef.current.play().catch(() => undefined);
-        startAudioEffect();
-        audioRef.current.onended = () => {
-          endAudioEffect();
-          if (audioRef.current) audioRef.current.onended = null;
-        };
-      }
-    } catch {
-      // Spin audio is decorative; keep the wheel usable if playback fails.
-    }
+    startSpinAudio();
 
     setRotation(finalRotation);
 
     const endHandler = () => {
       setIsSpinning(false);
 
-      if (audioRef.current) {
-        audioRef.current.loop = false;
-        try {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-          audioRef.current.onended = null;
-          endAudioEffect();
-        } catch {
-          // Ignore browsers that reject resetting an unloaded audio element.
-        }
-      }
-
+      finishSpinAudioLoop();
       playSelectedCardSound(selectedCard);
       onSpinComplete(selectedCard);
     };
@@ -191,13 +220,13 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     }
   }, [
     cards,
-    endAudioEffect,
+    finishSpinAudioLoop,
     isSpinning,
     onSpinComplete,
     playSelectedCardSound,
     prepareSelectedCardSound,
     rotation,
-    startAudioEffect,
+    startSpinAudio,
   ]);
 
   useEffect(() => {

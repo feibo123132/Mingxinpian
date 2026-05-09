@@ -38,6 +38,12 @@ test('summer theme uses the Jieyou wind-facing header copy', () => {
   assert.equal(summerTheme.startButton.ariaLabel, '点击JIEYOU按钮开始抽卡');
 });
 
+test('summer theme uses the self-love footer copy', () => {
+  const summerTheme = getThemeById('summer');
+
+  assert.equal(summerTheme.footer, '爱自己，是终身美丽的开始');
+});
+
 test('summer postcard image and sound assets stay aligned with card order', () => {
   const summerTheme = getThemeById('summer');
 

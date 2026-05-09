@@ -86,7 +86,7 @@ export const summerTheme: AppTheme = {
   icon: '🌊',
   title: '风吹一夏',
   subtitle: '点击JIEYOU按钮，抽取你的夏日明信片',
-  footer: '把这一刻交给海风，看看今天会收到哪一封温柔来信。',
+  footer: '爱自己，是终身美丽的开始',
   background: 'linear-gradient(135deg, #f9fff8 0%, #dff9f5 46%, #fff1c7 100%)',
   surface: '#ffffff',
   titleColor: '#12445a',
