@@ -13,7 +13,7 @@ const BgmController: React.FC<BgmControllerProps> = ({ tracks, accentColor }) =>
   const [current, setCurrent] = useState<number | null>(null);
   const fadeTimerRef = useRef<number | null>(null);
   const baseVol = 0.6;
-  const duckVol = 0.2;
+  const duckVol = baseVol * 0.42;
   const activeCount = useAudioBus((state) => state.activeCount);
 
   const audios = useMemo(() => {
@@ -87,7 +87,7 @@ const BgmController: React.FC<BgmControllerProps> = ({ tracks, accentColor }) =>
         fadeTimerRef.current = null;
       }
     }, stepMs);
-  }, [activeCount, audios, current, playing]);
+  }, [activeCount, audios, current, duckVol, playing]);
 
   const playIndex = useCallback(
     (idx: number) => {
@@ -120,7 +120,7 @@ const BgmController: React.FC<BgmControllerProps> = ({ tracks, accentColor }) =>
         // Background music is optional; keep the UI usable if playback fails.
       }
     },
-    [activeCount, audios],
+    [activeCount, audios, duckVol],
   );
 
   const toggle = () => {
