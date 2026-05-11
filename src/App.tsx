@@ -34,6 +34,11 @@ function App() {
   useEffect(() => {
     try {
       cards.slice(0, MAX_POSTCARDS).forEach((card) => {
+        if (card.video) {
+          const video = document.createElement('video');
+          video.preload = 'auto';
+          video.src = resolveAssetPath(card.video);
+        }
         if (!card.image) return;
         const image = new Image();
         image.decoding = 'async';
@@ -41,7 +46,7 @@ function App() {
         image.src = resolveAssetPath(card.image);
       });
     } catch {
-      // Image preloading is an enhancement; rendering can continue without it.
+      // Preloading is an enhancement; rendering can continue without it.
     }
   }, [cards]);
 

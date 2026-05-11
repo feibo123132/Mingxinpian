@@ -17,7 +17,16 @@ const ResultModal: React.FC<ResultModalProps> = ({ card, theme, isOpen, onClose,
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="mx-4 w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: theme.surface }}>
         <div className="mb-4 flex justify-center">
-          {card.image ? (
+          {card.video ? (
+            <video
+              src={resolveAssetPath(card.video)}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="aspect-[4/3] w-full rounded-xl object-cover shadow-md"
+            />
+          ) : card.image ? (
             <img
               src={resolveAssetPath(card.image)}
               alt={card.title}

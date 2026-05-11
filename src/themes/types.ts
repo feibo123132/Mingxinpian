@@ -3,6 +3,7 @@ export interface Postcard {
   title: string;
   content: string;
   image: string;
+  video?: string;
   sound: string;
 }
 
