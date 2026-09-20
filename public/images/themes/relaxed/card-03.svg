@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+<rect width="800" height="600" fill="#fffaf0"/>
+<rect x="24" y="24" width="752" height="552" rx="24" fill="none" stroke="#384638" stroke-opacity=".2"/>
+<text x="60" y="82" fill="#58614e" font-family="sans-serif" font-size="18" letter-spacing="4">TAKE IT EASY / 03</text>
+<circle cx="400" cy="270" r="126" fill="#eca183"/>
+<g fill="none" stroke="#384638" stroke-width="7" stroke-linecap="round">
+<path d="M337 252q18 15 36 0M427 252q18 15 36 0"/>
+<path d="M368 298q32 33 64 0"/>
+<path d="M244 323l-20 12m332-12 20 12"/>
+</g>
+<text x="400" y="464" text-anchor="middle" fill="#384638" font-family="Microsoft YaHei, sans-serif" font-size="44" font-weight="bold">正常演唱</text>
+<text x="400" y="527" text-anchor="middle" fill="#78816d" font-family="Microsoft YaHei, sans-serif" font-size="19" letter-spacing="5">轻松绷住 · 今日份松弛感</text>
+</svg>
+

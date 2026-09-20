@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { resolveAssetPath } from '../lib/assetPaths';
-import { WHEEL_GRADIENT_START_OFFSET, getWheelSelectedIndex } from '../lib/wheelSelection';
+import { WHEEL_GRADIENT_START_OFFSET, getWheelSelectedIndex, getRestrictedWheelRotation } from '../lib/wheelSelection';
 import { useAudioBus } from '../store/audioBus';
 import type { AppTheme, Postcard } from '../themes';
 
@@ -198,7 +198,9 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     const minRotation = 1800;
     const maxRotation = 3000;
     const randomRotation = Math.floor(Math.random() * (maxRotation - minRotation + 1)) + minRotation;
-    const finalRotation = rotation + randomRotation;
+    const finalRotation = theme.id === 'relaxed'
+      ? getRestrictedWheelRotation(rotation, cards.length, 2)
+      : rotation + randomRotation;
     const selectedIndex = getWheelSelectedIndex(finalRotation, cards.length);
     const selectedCard = cards[selectedIndex];
 
@@ -227,6 +229,7 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     prepareSelectedCardSound,
     rotation,
     startSpinAudio,
+    theme.id,
   ]);
 
   useEffect(() => {
@@ -364,7 +367,7 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
           />
         ) : (
           <span className="flex flex-col items-center text-center font-black leading-none">
-            <span className="text-xl">{theme.startButton.label}</span>
+            <span className={theme.id === 'relaxed' ? 'text-[26px]' : 'text-xl'}>{theme.startButton.label}</span>
             {theme.startButton.sublabel ? (
               <span className="mt-1 text-[10px] font-bold">{theme.startButton.sublabel}</span>
             ) : null}

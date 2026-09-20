@@ -32,7 +32,7 @@ const ResultModal: React.FC<ResultModalProps> = ({ card, theme, isOpen, onClose,
               alt={card.title}
               decoding="async"
               loading="eager"
-              className="aspect-[4/3] w-full rounded-xl object-cover shadow-md"
+              className={theme.id === 'relaxed' ? 'h-auto w-full rounded-xl shadow-md' : 'aspect-[4/3] w-full rounded-xl object-cover shadow-md'}
             />
           ) : (
             <div

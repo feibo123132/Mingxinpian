@@ -6,7 +6,9 @@ export const LEGACY_CARD_STORAGE_KEY = 'postcard-config';
 export const MAX_POSTCARDS = 10;
 export const MIN_POSTCARDS = 1;
 
-export const getCardStorageKey = (themeId: string) => `postcard-config:${themeId}`;
+// Keep the earlier ten-card configuration intact while starting the new three-mode set.
+export const getCardStorageKey = (themeId: string) =>
+  themeId === 'relaxed' ? 'postcard-config:relaxed:modes-v2' : `postcard-config:${themeId}`;
 
 const createBlankCard = (index: number, fallback: Postcard[]): Postcard => {
   const base = fallback[index % Math.max(fallback.length, 1)];
@@ -53,7 +55,18 @@ const normalizeCards = (themeId: string, cards: unknown, fallback: Postcard[]) =
     const baseCard = fallback[index] ?? createBlankCard(index, fallback);
     if (!savedCard || typeof savedCard !== 'object') return baseCard;
 
-    const partial = savedCard as Partial<Postcard>;
+    const partial = { ...savedCard } as Partial<Postcard>;
+    // Refresh previous built-in defaults without replacing custom card edits.
+    if (themeId === 'relaxed') {
+      if (partial.id === 'relaxed-2' && partial.title === '抽象模式') {
+        partial.title = '严肃抽象';
+      }
+      const updatedCard = fallback.find((card) => card.id === partial.id);
+      if (updatedCard && (partial.id === 'relaxed-1' || partial.id === 'relaxed-2') &&
+          partial.image === `/images/themes/relaxed/card-0${partial.id.slice(-1)}.svg`) {
+        partial.image = updatedCard.image;
+      }
+    }
 
     return {
       ...baseCard,
