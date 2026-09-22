@@ -15,7 +15,7 @@ const ResultModal: React.FC<ResultModalProps> = ({ card, theme, isOpen, onClose,
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="mx-4 w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: theme.surface }}>
+      <div className="mx-4 max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl p-6 shadow-2xl" style={{ background: theme.surface }}>
         <div className="mb-4 flex justify-center">
           {card.video ? (
             <video
@@ -32,7 +32,11 @@ const ResultModal: React.FC<ResultModalProps> = ({ card, theme, isOpen, onClose,
               alt={card.title}
               decoding="async"
               loading="eager"
-              className={theme.id === 'relaxed' ? 'h-auto w-full rounded-xl shadow-md' : 'aspect-[4/3] w-full rounded-xl object-cover shadow-md'}
+              className={theme.id === 'adventure'
+                ? 'aspect-square w-full rounded-xl object-contain shadow-md'
+                : theme.id === 'relaxed'
+                  ? 'h-auto w-full rounded-xl shadow-md'
+                  : 'aspect-[4/3] w-full rounded-xl object-cover shadow-md'}
             />
           ) : (
             <div

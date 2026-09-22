@@ -135,6 +135,7 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
       spinAudio.loop = true;
       spinAudio.volume = 0.9;
       spinAudio.onended = null;
+      spinAudio.onerror = null;
       spinAudio.play().catch(() => markSpinAudioEnded());
       markSpinAudioStarted();
     } catch {
@@ -142,9 +143,9 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     }
   }, [markSpinAudioEnded, markSpinAudioStarted]);
 
-  const finishSpinAudioLoop = useCallback(() => {
+  const finishSpinAudioLoop = useCallback((onFinished?: () => void) => {
     const spinAudio = audioRef.current;
-    if (!spinAudio || !spinAudioActiveRef.current) return;
+    if (!spinAudio || !spinAudioActiveRef.current) { onFinished?.(); return; }
 
     spinAudio.loop = false;
     spinAudio.onended = () => {
@@ -157,6 +158,14 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
       }
 
       spinAudio.onended = null;
+      spinAudio.onerror = null;
+      onFinished?.();
+    };
+    spinAudio.onerror = () => {
+      spinAudio.onended = null;
+      spinAudio.onerror = null;
+      markSpinAudioEnded();
+      onFinished?.();
     };
   }, [markSpinAudioEnded]);
 
@@ -170,6 +179,7 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
       try {
         audio.pause();
         audio.onended = null;
+        audio.onerror = null;
       } catch {
         // Ignore browsers that reject resetting an unloaded audio element.
       }
@@ -212,8 +222,12 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     const endHandler = () => {
       setIsSpinning(false);
 
-      finishSpinAudioLoop();
-      playSelectedCardSound(selectedCard);
+      if (theme.id === 'relaxed') {
+        finishSpinAudioLoop(() => playSelectedCardSound(selectedCard));
+      } else {
+        finishSpinAudioLoop();
+        playSelectedCardSound(selectedCard);
+      }
       onSpinComplete(selectedCard);
     };
 

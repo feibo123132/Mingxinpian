@@ -58,10 +58,14 @@ const normalizeCards = (themeId: string, cards: unknown, fallback: Postcard[]) =
     const partial = { ...savedCard } as Partial<Postcard>;
     // Refresh previous built-in defaults without replacing custom card edits.
     if (themeId === 'relaxed') {
-      if (partial.id === 'relaxed-2' && partial.title === '抽象模式') {
-        partial.title = '严肃抽象';
+      if (partial.id === 'relaxed-2' && (partial.title === '抽象模式' || partial.title === '严肃抽象')) {
+        partial.title = '为人严肃';
       }
       const updatedCard = fallback.find((card) => card.id === partial.id);
+      if (updatedCard && (
+        (partial.id === 'relaxed-1' && partial.content === '放轻松，稳住表情，开始你的表演！') ||
+        (partial.id === 'relaxed-2' && partial.content === '放开想象，自由发挥，快乐就是今天的主旋律！')
+      )) partial.content = updatedCard.content;
       if (updatedCard && (partial.id === 'relaxed-1' || partial.id === 'relaxed-2') &&
           partial.image === `/images/themes/relaxed/card-0${partial.id.slice(-1)}.svg`) {
         partial.image = updatedCard.image;

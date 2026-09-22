@@ -2,8 +2,8 @@ import type { AppTheme } from './types.ts';
 
 const colors = ['#e8c65b', '#a9be91', '#eca183'];
 const messages = [
-  ['轻松绷住', '放轻松，稳住表情，开始你的表演！'],
-  ['严肃抽象', '放开想象，自由发挥，快乐就是今天的主旋律！'],
+  ['轻松绷住', '直接轻松绷住了'],
+  ['为人严肃', '我们受过严格的训练，无论多好笑呢，我们都不会笑'],
   ['正常演唱', '跟着旋律，认真唱出你喜欢的歌。'],
 ];
 
@@ -40,6 +40,6 @@ export const relaxedTheme: AppTheme = {
     title,
     content,
     image: ['/images/themes/relaxed/relaxed-meme.jpg', '/images/themes/relaxed/serious-abstract.jpg', '/images/themes/relaxed/card-03.svg'][index],
-    sound: '',
+    sound: index < 2 ? `/audio/relaxed-card-${String(index + 1).padStart(2, '0')}.mp3` : '',
   })),
 };

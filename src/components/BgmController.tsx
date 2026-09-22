@@ -15,6 +15,7 @@ const BgmController: React.FC<BgmControllerProps> = ({ tracks, accentColor }) =>
   const baseVol = 0.6;
   const duckVol = baseVol * 0.42;
   const activeCount = useAudioBus((state) => state.activeCount);
+  const exclusiveCount = useAudioBus((state) => state.exclusiveCount);
 
   const audios = useMemo(() => {
     return tracks.map((track) => {
@@ -54,6 +55,10 @@ const BgmController: React.FC<BgmControllerProps> = ({ tracks, accentColor }) =>
       }
     });
   }, [audios]);
+
+  useEffect(() => {
+    audios.forEach(audio => { audio.muted = exclusiveCount > 0; });
+  }, [audios, exclusiveCount]);
 
   useEffect(() => {
     if (!playing) return;

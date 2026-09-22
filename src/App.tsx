@@ -4,6 +4,7 @@ import HeaderMenu from './components/HeaderMenu';
 import ResultModal from './components/ResultModal';
 import SettingsModal from './components/SettingsModal';
 import Wheel from './components/Wheel';
+import MultiplayerMode, { PlayerCountDialog } from './components/MultiplayerMode';
 import useLocalStorage from './hooks/useLocalStorage';
 import { resolveAssetPath } from './lib/assetPaths';
 import { ACTIVE_THEME_STORAGE_KEY, MAX_POSTCARDS, loadCardsForTheme, saveCardsForTheme } from './themes/storage';
@@ -18,6 +19,9 @@ function App() {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [spinRequestId, setSpinRequestId] = useState(0);
+  const [multiplayerCount, setMultiplayerCount] = useState<number | null>(null);
+  const [showPlayerCount, setShowPlayerCount] = useState(false);
+  const [multiplayerSession, setMultiplayerSession] = useState(0);
 
   useEffect(() => {
     if (activeTheme.id !== activeThemeId) {
@@ -67,6 +71,8 @@ function App() {
     saveCardsForTheme(activeTheme.id, nextCards);
   };
 
+  const isAdventure = activeTheme.id === 'adventure';
+  const multipleWheels = isAdventure && (multiplayerCount ?? 1) > 1;
   const wheelCards = useMemo(() => cards.slice(0, MAX_POSTCARDS), [cards]);
 
   return (
@@ -74,15 +80,16 @@ function App() {
       className="flex min-h-screen flex-col items-center p-4 transition-colors duration-500"
       style={{ background: activeTheme.background, color: activeTheme.bodyColor }}
     >
-      <div className="app-container flex min-h-[calc(100vh-2rem)] w-full flex-col items-center">
-        <header className="relative w-full max-w-md pt-5">
+      <div className="app-container flex min-h-[calc(100vh-2rem)] w-full flex-col items-center" style={multipleWheels ? { maxWidth: '1152px' } : undefined}>
+        <header className={`relative w-full pt-5 ${!multipleWheels ? 'max-w-md' : ''}`}>
           <BgmController tracks={activeTheme.audio.bgm} accentColor={activeTheme.accentColor} />
 
           <HeaderMenu
             themes={builtinThemes}
             activeTheme={activeTheme}
-            onSelectTheme={setActiveThemeId}
+            onSelectTheme={(id) => { setActiveThemeId(id); setMultiplayerCount(null); setMultiplayerSession(value => value + 1); }}
             onOpenSettings={() => setIsSettingsModalOpen(true)}
+            onOpenMultiplayer={() => setShowPlayerCount(true)}
           />
 
           <div className="mb-2 flex items-center justify-center gap-2 px-20 text-center">
@@ -98,14 +105,24 @@ function App() {
           </p>
         </header>
 
-        <main className="flex w-full max-w-sm flex-1 items-center justify-center py-8">
+        {isAdventure ? (
+          <MultiplayerMode key={multiplayerSession} theme={activeTheme} initialCount={multiplayerCount ?? 1} onExit={() => { setMultiplayerCount(1); setMultiplayerSession(value => value + 1); }} />
+        ) : <main className="flex w-full max-w-sm flex-1 items-center justify-center py-8">
           <Wheel
             cards={wheelCards}
             theme={activeTheme}
             spinRequestId={spinRequestId}
             onSpinComplete={handleSpinComplete}
           />
-        </main>
+        </main>}
+
+        {showPlayerCount && <PlayerCountDialog initialCount={multiplayerCount ?? 1} onClose={() => setShowPlayerCount(false)} onConfirm={count => {
+          setActiveThemeId('adventure');
+          setMultiplayerCount(count);
+          setMultiplayerSession(session => session + 1);
+          setShowPlayerCount(false);
+          setIsResultModalOpen(false);
+        }} />}
 
         <ResultModal
           card={selectedCard}
