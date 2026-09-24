@@ -1,0 +1,894 @@
+﻿TAP version 13
+# Subtest: half of the random range triggers a bonus, equally split between two cards
+ok 1 - half of the random range triggers a bonus, equally split between two cards
+  ---
+  duration_ms: 6.0277
+  type: 'test'
+  ...
+# Subtest: bonus boundaries exclude the normal singing card
+ok 2 - bonus boundaries exclude the normal singing card
+  ---
+  duration_ms: 0.3307
+  type: 'test'
+  ...
+# Subtest: App layout pins the header to the top and footer to the bottom
+not ok 3 - App layout pins the header to the top and footer to the bottom
+  ---
+  duration_ms: 4.904
+  type: 'test'
+  location: 'D:\\0-DeskMove\\0829 Banana锛唖eedream\\1204  鍏ㄦ爤璁捐甯圽\4銆佹槑淇＄墖鎶藉崱 1225\\tests\\app-layout-source.test.ts:7:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /<header className="relative w-full max-w-md pt-5"/. Input:
+    
+    "import { useEffect, useMemo, useState } from 'react';\r\n" +
+      "import BgmController from './components/BgmController';\r\n" +
+      "import HeaderMenu from './components/HeaderMenu';\r\n" +
+      "import ResultModal from './components/ResultModal';\r\n" +
+      "import SettingsModal from './components/SettingsModal';\r\n" +
+      "import Wheel from './components/Wheel';\r\n" +
+      "import MultiplayerMode, { PlayerCountDialog } from './components/MultiplayerMode';\r\n" +
+      "import useLocalStorage from './hooks/useLocalStorage';\r\n" +
+      "import { resolveAssetPath } from './lib/assetPaths';\r\n" +
+      "import { ACTIVE_THEME_STORAGE_KEY, MAX_POSTCARDS, loadCardsForTheme, saveCardsForTheme } from './themes/storage';\r\n" +
+      "import { DEFAULT_THEME_ID, builtinThemes, getThemeById } from './themes';\r\n" +
+      "import type { Postcard } from './themes';\r\n" +
+      '\r\n' +
+      'function App() {\r\n' +
+      '  const [activeThemeId, setActiveThemeId] = useLocalStorage<string>(ACTIVE_THEME_STORAGE_KEY, DEFAULT_THEME_ID);\r\n' +
+      '  const activeTheme = getThemeById(activeThemeId);\r\n' +
+      '  const [cards, setCards] = useState<Postcard[]>(() => loadCardsForTheme(activeTheme.id, activeTheme.cards));\r\n' +
+      '  const [selectedCard, setSelectedCard] = useState<Postcard | null>(null);\r\n' +
+      '  const [isResultModalOpen, setIsResultModalOpen] = useState(false);\r\n' +
+      '  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);\r\n' +
+      '  const [spinRequestId, setSpinRequestId] = useState(0);\r\n' +
+      '  const [multiplayerCount, setMultiplayerCount] = useState<number | null>(null);\r\n' +
+      '  const [showPlayerCount, setShowPlayerCount] = useState(false);\r\n' +
+      '  const [multiplayerSession, setMultiplayerSession] = useState(0);\r\n' +
+      '\r\n' +
+      '  useEffect(() => {\r\n' +
+      '    if (activeTheme.id !== activeThemeId) {\r\n' +
+      '      setActiveThemeId(activeTheme.id);\r\n' +
+      '    }\r\n' +
+      '  }, [activeTheme.id, activeThemeId, setActiveThemeId]);\r\n' +
+      '\r\n' +
+      '  useEffect(() => {\r\n' +
+      '    setCards(loadCardsForTheme(activeTheme.id, activeTheme.cards));\r\n' +
+      '    setSelectedCard(null);\r\n' +
+      '    setIsResultModalOpen(false);\r\n' +
+      '  }, [activeTheme]);\r\n' +
+      '\r\n' +
+      '  useEffect(() => {\r\n' +
+      '    try {\r\n' +
+      '      cards.slice(0, MAX_POSTCARDS).forEach((card) => {\r\n' +
+      '        if (card.video) {\r\n' +
+      "          const video = document.createElement('video');\r\n" +
+      "          video.preload = 'auto';\r\n" +
+      '          video.src = resolveAssetPath(card.video);\r\n' +
+      '        }\r\n' +
+      '        if (!card.image) return;\r\n' +
+      '        const image = new Image();\r\n' +
+      "        image.decoding = 'async';\r\n" +
+      "        image.loading = 'eager';\r\n" +
+      '        image.src = resolveAssetPath(card.image);\r\n' +
+      '      });\r\n' +
+      '    } catch {\r\n' +
+      '      // Preloading is an enhancement; rendering can continue without it.\r\n' +
+      '    }\r\n' +
+      '  }, [cards]);\r\n' +
+      '\r\n' +
+      '  const handleSpinComplete = (card: Postcard) => {\r\n' +
+      '    setSelectedCard(card);\r\n' +
+      '    setIsResultModalOpen(true);\r\n' +
+      '  };\r\n' +
+      '\r\n' +
+      '  const handleSpinAgain = () => {\r\n' +
+      '    setIsResultModalOpen(false);\r\n' +
+      '    setSelectedCard(null);\r\n' +
+      '    setSpinRequestId((requestId) => requestId + 1);\r\n' +
+      '  };\r\n' +
+      '\r\n' +
+      '  const handleSaveCards = (newCards: Postcard[]) => {\r\n' +
+      '    const nextCards = newCards.slice(0, MAX_POSTCARDS);\r\n' +
+      '    setCards(nextCards);\r\n' +
+      '    saveCardsForTheme(activeTheme.id, nextCards);\r\n' +
+      '  };\r\n' +
+      '\r\n' +
+      "  const isAdventure = activeTheme.id === 'adventure';\r\n" +
+      '  const multipleWheels = isAdventure && (multiplayerCount ?? 1) > 1;\r\n' +
+      '  const wheelCards = useMemo(() => cards.slice(0, MAX_POSTCARDS), [cards]);\r\n' +
+      '\r\n' +
+      '  return (\r\n' +
+      '    <div\r\n' +
+      '      className="flex min-h-screen flex-col items-center p-4 transition-colors duration-500"\r\n' +
+      '      style={{ background: activeTheme.background, color: activeTheme.bodyColor }}\r\n' +
+      '    >\r\n' +
+      `      <div className="app-container flex min-h-[calc(100vh-2rem)] w-full flex-col items-center" style={multipleWheels ? { maxWidth: '1152px' } : undefined}>\r\n` +
+      "        <header className={`relative w-full pt-5 ${!multipleWheels ? 'max-w-md' : ''}`}>\r\n" +
+      '          <BgmController tracks={activeTheme.audio.bgm} accentColor={activeTheme.accentColor} />\r\n' +
+      '\r\n' +
+      '          <HeaderMenu\r\n' +
+      '            themes={builtinThemes}\r\n' +
+      '            activeTheme={activeTheme}\r\n' +
+      '            onSelectTheme={(id) => { setActiveThemeId(id); setMultiplayerCount(null); setMultiplayerSession(value => value + 1); }}\r\n' +
+      '            onOpenSettings={() => setIsSettingsModalOpen(true)}\r\n' +
+      '            onOpenMultiplayer={() => setShowPlayerCount(true)}\r\n' +
+      '          />\r\n' +
+      '\r\n' +
+      '          <div className="mb-2 flex items-center justify-center gap-2 px-20 text-center">\r\n' +
+      '            <span role="img" aria-label={activeTheme.shortName} className="text-3xl">\r\n' +
+      '              {activeTheme.icon}\r\n' +
+      '            </span>\r\n' +
+      '            <h1 className="text-3xl font-bold" style={{ color: activeTheme.titleColor }}>\r\n' +
+      '              {activeTheme.title}\r\n' +
+      '            </h1>\r\n' +
+      '          </div>\r\n' +
+      '          <p className="text-center text-base" style={{ color: activeTheme.bodyColor }}>\r\n' +
+      '            {activeTheme.subtitle}\r\n' +
+      '          </p>\r\n' +
+      '        </header>\r\n' +
+      '\r\n' +
+      '        {isAdventure ? (\r\n' +
+      '          <MultiplayerMode key={multiplayerSession} theme={activeTheme} initialCount={multiplayerCount ?? 1} onExit={() => { setMultiplayerCount(1); setMultiplayerSession(value => value + 1); }} />\r\n' +
+      '        ) : <main className="flex w-full max-w-sm flex-1 items-center justify-center py-8">\r\n' +
+      '          <Wheel\r\n' +
+      '            cards={wheelCards}\r\n' +
+      '            theme={activeTheme}\r\n' +
+      '            spinRequestId={spinRequestId}\r\n' +
+      '            onSpinComplete={handleSpinComplete}\r\n' +
+      '          />\r\n' +
+      '        </main>}\r\n' +
+      '\r\n' +
+      '        {showPlayerCount && <PlayerCountDialog initialCount={multiplayerCount ?? 1} onClose={() => setShowPlayerCount(false)} onConfirm={count => {\r\n' +
+      "          setActiveThemeId('adventure');\r\n" +
+      '          setMultiplayerCount(count);\r\n' +
+      '          setMultiplayerSession(session => session + 1);\r\n' +
+      '          setShowPlayerCount(false);\r\n' +
+      '          setIsResultModalOpen(false);\r\n' +
+      '        }} />}\r\n' +
+      '\r\n' +
+      '        <ResultModal\r\n' +
+      '          card={selectedCard}\r\n' +
+      '          theme={activeTheme}\r\n' +
+      '          isOpen={isResultModalOpen}\r\n' +
+      '          onClose={() => setIsResultModalOpen(false)}\r\n' +
+      '          onSpinAgain={handleSpinAgain}\r\n' +
+      '        />\r\n' +
+      '\r\n' +
+      '        <SettingsModal\r\n' +
+      '          isOpen={isSettingsModalOpen}\r\n' +
+      '          theme={activeTheme}\r\n' +
+      '          cards={wheelCards}\r\n' +
+      '          onClose={() => setIsSettingsModalOpen(false)}\r\n' +
+      '          onSave={handleSaveCards}\r\n' +
+      '        />\r\n' +
+      '\r\n' +
+      '        <footer className="w-full pb-8 text-center text-sm" style={{ color: activeTheme.mutedColor }}>\r\n' +
+      '          <p>{activeTheme.footer}</p>\r\n' +
+      '        </footer>\r\n' +
+      '      </div>\r\n' +
+      '    </div>\r\n' +
+      '  );\r\n' +
+      '}\r\n' +
+      '\r\n' +
+      'export default App;\r\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    import { useEffect, useMemo, useState } from 'react';
+    import BgmController from './components/BgmController';
+    import HeaderMenu from './components/HeaderMenu';
+    import ResultModal from './components/ResultModal';
+    import SettingsModal from './components/SettingsModal';
+    import Wheel from './components/Wheel';
+    import MultiplayerMode, { PlayerCountDialog } from './components/MultiplayerMode';
+    import useLocalStorage from './hooks/useLocalStorage';
+    import { resolveAssetPath } from './lib/assetPaths';
+    import { ACTIVE_THEME_STORAGE_KEY, MAX_POSTCARDS, loadCardsForTheme, saveCardsForTheme } from './themes/storage';
+    import { DEFAULT_THEME_ID, builtinThemes, getThemeById } from './themes';
+    import type { Postcard } from './themes';
+    
+    function App() {
+      const [activeThemeId, setActiveThemeId] = useLocalStorage<string>(ACTIVE_THEME_STORAGE_KEY, DEFAULT_THEME_ID);
+      const activeTheme = getThemeById(activeThemeId);
+      const [cards, setCards] = useState<Postcard[]>(() => loadCardsForTheme(activeTheme.id, activeTheme.cards));
+      const [selectedCard, setSelectedCard] = useState<Postcard | null>(null);
+      const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+      const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+      const [spinRequestId, setSpinRequestId] = useState(0);
+      const [multiplayerCount, setMultiplayerCount] = useState<number | null>(null);
+      const [showPlayerCount, setShowPlayerCount] = useState(false);
+      const [multiplayerSession, setMultiplayerSession] = useState(0);
+    
+      useEffect(() => {
+        if (activeTheme.id !== activeThemeId) {
+          setActiveThemeId(activeTheme.id);
+        }
+      }, [activeTheme.id, activeThemeId, setActiveThemeId]);
+    
+      useEffect(() => {
+        setCards(loadCardsForTheme(activeTheme.id, activeTheme.cards));
+        setSelectedCard(null);
+        setIsResultModalOpen(false);
+      }, [activeTheme]);
+    
+      useEffect(() => {
+        try {
+          cards.slice(0, MAX_POSTCARDS).forEach((card) => {
+            if (card.video) {
+              const video = document.createElement('video');
+              video.preload = 'auto';
+              video.src = resolveAssetPath(card.video);
+            }
+            if (!card.image) return;
+            const image = new Image();
+            image.decoding = 'async';
+            image.loading = 'eager';
+            image.src = resolveAssetPath(card.image);
+          });
+        } catch {
+          // Preloading is an enhancement; rendering can continue without it.
+        }
+      }, [cards]);
+    
+      const handleSpinComplete = (card: Postcard) => {
+        setSelectedCard(card);
+        setIsResultModalOpen(true);
+      };
+    
+      const handleSpinAgain = () => {
+        setIsResultModalOpen(false);
+        setSelectedCard(null);
+        setSpinRequestId((requestId) => requestId + 1);
+      };
+    
+      const handleSaveCards = (newCards: Postcard[]) => {
+        const nextCards = newCards.slice(0, MAX_POSTCARDS);
+        setCards(nextCards);
+        saveCardsForTheme(activeTheme.id, nextCards);
+      };
+    
+      const isAdventure = activeTheme.id === 'adventure';
+      const multipleWheels = isAdventure && (multiplayerCount ?? 1) > 1;
+      const wheelCards = useMemo(() => cards.slice(0, MAX_POSTCARDS), [cards]);
+    
+      return (
+        <div
+          className="flex min-h-screen flex-col items-center p-4 transition-colors duration-500"
+          style={{ background: activeTheme.background, color: activeTheme.bodyColor }}
+        >
+          <div className="app-container flex min-h-[calc(100vh-2rem)] w-full flex-col items-center" style={multipleWheels ? { maxWidth: '1152px' } : undefined}>
+            <header className={`relative w-full pt-5 ${!multipleWheels ? 'max-w-md' : ''}`}>
+              <BgmController tracks={activeTheme.audio.bgm} accentColor={activeTheme.accentColor} />
+    
+              <HeaderMenu
+                themes={builtinThemes}
+                activeTheme={activeTheme}
+                onSelectTheme={(id) => { setActiveThemeId(id); setMultiplayerCount(null); setMultiplayerSession(value => value + 1); }}
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
+                onOpenMultiplayer={() => setShowPlayerCount(true)}
+              />
+    
+              <div className="mb-2 flex items-center justify-center gap-2 px-20 text-center">
+                <span role="img" aria-label={activeTheme.shortName} className="text-3xl">
+                  {activeTheme.icon}
+                </span>
+                <h1 className="text-3xl font-bold" style={{ color: activeTheme.titleColor }}>
+                  {activeTheme.title}
+                </h1>
+              </div>
+              <p className="text-center text-base" style={{ color: activeTheme.bodyColor }}>
+                {activeTheme.subtitle}
+              </p>
+            </header>
+    
+            {isAdventure ? (
+              <MultiplayerMode key={multiplayerSession} theme={activeTheme} initialCount={multiplayerCount ?? 1} onExit={() => { setMultiplayerCount(1); setMultiplayerSession(value => value + 1); }} />
+            ) : <main className="flex w-full max-w-sm flex-1 items-center justify-center py-8">
+              <Wheel
+                cards={wheelCards}
+                theme={activeTheme}
+                spinRequestId={spinRequestId}
+                onSpinComplete={handleSpinComplete}
+              />
+            </main>}
+    
+            {showPlayerCount && <PlayerCountDialog initialCount={multiplayerCount ?? 1} onClose={() => setShowPlayerCount(false)} onConfirm={count => {
+              setActiveThemeId('adventure');
+              setMultiplayerCount(count);
+              setMultiplayerSession(session => session + 1);
+              setShowPlayerCount(false);
+              setIsResultModalOpen(false);
+            }} />}
+    
+            <ResultModal
+              card={selectedCard}
+              theme={activeTheme}
+              isOpen={isResultModalOpen}
+              onClose={() => setIsResultModalOpen(false)}
+              onSpinAgain={handleSpinAgain}
+            />
+    
+            <SettingsModal
+              isOpen={isSettingsModalOpen}
+              theme={activeTheme}
+              cards={wheelCards}
+              onClose={() => setIsSettingsModalOpen(false)}
+              onSave={handleSaveCards}
+            />
+    
+            <footer className="w-full pb-8 text-center text-sm" style={{ color: activeTheme.mutedColor }}>
+              <p>{activeTheme.footer}</p>
+            </footer>
+          </div>
+        </div>
+      );
+    }
+    
+    export default App;
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///D:/0-DeskMove/0829%20Banana%EF%BC%86seedream/1204%20%20%E5%85%A8%E6%A0%88%E8%AE%BE%E8%AE%A1%E5%B8%88/4%E3%80%81%E6%98%8E%E4%BF%A1%E7%89%87%E6%8A%BD%E5%8D%A1%201225/tests/app-layout-source.test.ts:9:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: normalizes public folder asset references to browser URLs
+ok 4 - normalizes public folder asset references to browser URLs
+  ---
+  duration_ms: 2.7547
+  type: 'test'
+  ...
+# Subtest: resolves public assets from the web root during dev even when base is relative
+ok 5 - resolves public assets from the web root during dev even when base is relative
+  ---
+  duration_ms: 0.3697
+  type: 'test'
+  ...
+# Subtest: keeps production relative asset URLs when base is relative
+ok 6 - keeps production relative asset URLs when base is relative
+  ---
+  duration_ms: 0.2199
+  type: 'test'
+  ...
+# Subtest: BGM ducks to 42% of its normal volume while card audio is active
+ok 7 - BGM ducks to 42% of its normal volume while card audio is active
+  ---
+  duration_ms: 1.3404
+  type: 'test'
+  ...
+# Subtest: App renders a single header menu instead of separate settings and theme buttons
+ok 8 - App renders a single header menu instead of separate settings and theme buttons
+  ---
+  duration_ms: 1.7269
+  type: 'test'
+  ...
+# Subtest: HeaderMenu contains both actions under one menu trigger
+ok 9 - HeaderMenu contains both actions under one menu trigger
+  ---
+  duration_ms: 0.7745
+  type: 'test'
+  ...
+# Subtest: HeaderMenu does not duplicate the active theme summary above the actions
+ok 10 - HeaderMenu does not duplicate the active theme summary above the actions
+  ---
+  duration_ms: 0.683
+  type: 'test'
+  ...
+# Subtest: HeaderMenu keeps theme options collapsed by default
+not ok 11 - HeaderMenu keeps theme options collapsed by default
+  ---
+  duration_ms: 3.2322
+  type: 'test'
+  location: 'D:\\0-DeskMove\\0829 Banana锛唖eedream\\1204  鍏ㄦ爤璁捐甯圽\4銆佹槑淇＄墖鎶藉崱 1225\\tests\\header-menu-source.test.ts:30:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /setThemesOpen\(\(value\) => !value\)/. Input:
+    
+    "import React, { useEffect, useRef, useState } from 'react';\r\n" +
+      "import { Check, ChevronRight, Menu, Palette, Settings, Users, X } from 'lucide-react';\r\n" +
+      "import type { AppTheme } from '../themes';\r\n" +
+      '\r\n' +
+      'interface HeaderMenuProps {\r\n' +
+      '  themes: AppTheme[];\r\n' +
+      '  activeTheme: AppTheme;\r\n' +
+      '  onSelectTheme: (themeId: string) => void;\r\n' +
+      '  onOpenSettings: () => void;\r\n' +
+      '  onOpenMultiplayer: () => void;\r\n' +
+      '}\r\n' +
+      '\r\n' +
+      'const HeaderMenu: React.FC<HeaderMenuProps> = ({ themes, activeTheme, onSelectTheme, onOpenSettings, onOpenMultiplayer }) => {\r\n' +
+      '  const [open, setOpen] = useState(false);\r\n' +
+      '  const [themesOpen, setThemesOpen] = useState(false);\r\n' +
+      '  const dialogRef = useRef<HTMLDialogElement>(null);\r\n' +
+      '  const menuButtonRef = useRef<HTMLButtonElement>(null);\r\n' +
+      '  useEffect(() => {\r\n' +
+      '    if (!themesOpen) return;\r\n' +
+      '    const dialog = dialogRef.current;\r\n' +
+      '    dialog?.showModal();\r\n' +
+      '    const previousOverflow = document.body.style.overflow;\r\n' +
+      "    document.body.style.overflow = 'hidden';\r\n" +
+      '    return () => {\r\n' +
+      '      dialog?.close();\r\n' +
+      '      document.body.style.overflow = previousOverflow;\r\n' +
+      '      menuButtonRef.current?.focus();\r\n' +
+      '    };\r\n' +
+      '  }, [themesOpen]);\r\n' +
+      '  const rootRef = useRef<HTMLDivElement>(null);\r\n' +
+      '\r\n' +
+      '  const closeMenu = () => {\r\n' +
+      '    setOpen(false);\r\n' +
+      '    setThemesOpen(false);\r\n' +
+      '  };\r\n' +
+      '\r\n' +
+      '  useEffect(() => {\r\n' +
+      '    if (!open) return;\r\n' +
+      '\r\n' +
+      '    const handlePointerDown = (event: PointerEvent) => {\r\n' +
+      '      if (!rootRef.current?.contains(event.target as Node)) {\r\n' +
+      '        closeMenu();\r\n' +
+      '      }\r\n' +
+      '    };\r\n' +
+      '\r\n' +
+      "    window.addEventListener('pointerdown', handlePointerDown);\r\n" +
+      "    return () => window.removeEventListener('pointerdown', handlePointerDown);\r\n" +
+      '  }, [open]);\r\n' +
+      '\r\n' +
+      '  const handleToggleMenu = () => {\r\n' +
+      '    setOpen((value) => {\r\n' +
+      '      if (value) setThemesOpen(false);\r\n' +
+      '      return !value;\r\n' +
+      '    });\r\n' +
+      '  };\r\n' +
+      '\r\n' +
+      '  const handleOpenSettings = () => {\r\n' +
+      '    onOpenSettings();\r\n' +
+      '    closeMenu();\r\n' +
+      '  };\r\n' +
+      '\r\n' +
+      '  const handleSelectTheme = (themeId: string) => {\r\n' +
+      '    onSelectTheme(themeId);\r\n' +
+      '    closeMenu();\r\n' +
+      '  };\r\n' +
+      '\r\n' +
+      '  return (\r\n' +
+      '    <div ref={rootRef} className="absolute right-0 top-0 z-20">\r\n' +
+      '      <button\r\n' +
+      '        ref={menuButtonRef}\r\n' +
+      '        onClick={handleToggleMenu}\r\n' +
+      '        className="flex h-10 w-10 items-center justify-center rounded-full shadow-md transition-transform duration-200 hover:scale-105"\r\n' +
+      '        style={{ background: activeTheme.surface, color: activeTheme.titleColor }}\r\n' +
+      '        aria-label="鎵撳紑鑿滃崟"\r\n' +
+      '        title="鑿滃崟"\r\n' +
+      '      >\r\n' +
+      '        <Menu className="h-5 w-5" />\r\n' +
+      '      </button>\r\n' +
+      '\r\n' +
+      '      {open ? (\r\n' +
+      '        <div className="absolute right-0 mt-3 w-44 overflow-hidden rounded-2xl bg-white text-left shadow-2xl ring-1 ring-black/5">\r\n' +
+      '          <button\r\n' +
+      '            onClick={handleOpenSettings}\r\n' +
+      '            className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left transition-colors hover:bg-gray-50"\r\n' +
+      '          >\r\n' +
+      '            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">\r\n' +
+      '              <Settings className="h-4 w-4" />\r\n' +
+      '            </span>\r\n' +
+      '            <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800">缂栬緫鏄庝俊鐗?/span>\r\n' +
+      '          </button>\r\n' +
+      '\r\n' +
+      '          <button\r\n' +
+      '            onClick={() => { setOpen(false); setThemesOpen(true); }}\r\n' +
+      '            className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50"\r\n' +
+      '            aria-haspopup="dialog"\r\n' +
+      '          >\r\n' +
+      '            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">\r\n' +
+      '              <Palette className="h-4 w-4" />\r\n' +
+      '            </span>\r\n' +
+      '            <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-gray-800">涓婚鍒囨崲</span><span className="mt-0.5 block truncate text-xs text-gray-400">{activeTheme.name}</span></span>\r\n' +
+      '            <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />\r\n' +
+      '          </button>\r\n' +
+      '\r\n' +
+      '          <button\r\n' +
+      '            onClick={() => { onOpenMultiplayer(); closeMenu(); }}\r\n' +
+      '            className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-3 text-left transition-colors hover:bg-gray-50"\r\n' +
+      '          >\r\n' +
+      '            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700"><Users className="h-4 w-4" /></span>\r\n' +
+      '            <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800">澶氫釜杞洏</span>\r\n' +
+      '          </button>\r\n' +
+      '        </div>\r\n' +
+      '      ) : null}\r\n' +
+      '      {themesOpen && <dialog ref={dialogRef} aria-labelledby="theme-picker-title" onCancel={(event) => { event.preventDefault(); setThemesOpen(false); }}\r\n' +
+      '        onClick={(event) => { if (event.target === event.currentTarget) { const rect = event.currentTarget.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) setThemesOpen(false); } }}\r\n' +
+      '        className="m-auto w-[calc(100%_-_2rem)] max-w-2xl overflow-hidden rounded-[2rem] border border-white bg-[#fffdf7] p-0 text-left text-gray-800 shadow-2xl backdrop:bg-black/35 backdrop:backdrop-blur-sm">\r\n' +
+      '        <div className="flex max-h-[85dvh] flex-col">\r\n' +
+      '          <header className="flex shrink-0 items-start justify-between gap-4 px-6 pb-5 pt-6 sm:px-8 sm:pt-8">\r\n' +
+      '            <div><p className="mb-2 text-[10px] font-bold tracking-[.25em] text-amber-700/60">CHOOSE YOUR MOOD</p><h2 id="theme-picker-title" className="text-2xl font-bold">鎹釜涓婚锛屾崲绉嶅績鎯?/h2><p className="mt-2 text-sm text-gray-500">閫夋嫨浣犳兂寮€鍚殑涓栫晫</p></div>\r\n' +
+      '            <button type="button" aria-label="鍏抽棴涓婚閫夋嫨" onClick={() => setThemesOpen(false)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/5 text-gray-500 hover:bg-black/10"><X size={18} /></button>\r\n' +
+      '          </header>\r\n' +
+      '          <div className="grid min-h-0 grid-cols-2 gap-3 overflow-y-auto px-6 pb-6 sm:grid-cols-3 sm:gap-4 sm:px-8 sm:pb-8">\r\n' +
+      '            {themes.map((theme) => {\r\n' +
+      '              const selected = theme.id === activeTheme.id;\r\n' +
+      '              return <button type="button" key={theme.id} aria-pressed={selected} onClick={() => handleSelectTheme(theme.id)}\r\n' +
+      '                className="relative flex min-h-40 flex-col items-start rounded-2xl border-2 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"\r\n' +
+      "                style={{ background: theme.background, borderColor: selected ? theme.accentColor : 'transparent' }}>\r\n" +
+      '                {selected && <span className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full bg-white/90" style={{ color: theme.titleColor }}><Check size={15} /></span>}\r\n' +
+      '                <span className="mb-4 text-3xl" aria-hidden="true">{theme.icon}</span>\r\n' +
+      '                <strong className="text-sm sm:text-base" style={{ color: theme.titleColor }}>{theme.name}</strong>\r\n' +
+      '                <span className="mt-auto flex flex-wrap gap-1 pt-4" aria-hidden="true">{theme.preview.colors.map((color, index) => <span key={index} className="h-2 w-4 rounded-full" style={{ background: color }} />)}</span>\r\n' +
+      '              </button>;\r\n' +
+      '            })}\r\n' +
+      '          </div>\r\n' +
+      '        </div>\r\n' +
+      '      </dialog>}\r\n' +
+      '    </div>\r\n' +
+      '  );\r\n' +
+      '};\r\n' +
+      '\r\n' +
+      'export default HeaderMenu;\r\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    import React, { useEffect, useRef, useState } from 'react';
+    import { Check, ChevronRight, Menu, Palette, Settings, Users, X } from 'lucide-react';
+    import type { AppTheme } from '../themes';
+    
+    interface HeaderMenuProps {
+      themes: AppTheme[];
+      activeTheme: AppTheme;
+      onSelectTheme: (themeId: string) => void;
+      onOpenSettings: () => void;
+      onOpenMultiplayer: () => void;
+    }
+    
+    const HeaderMenu: React.FC<HeaderMenuProps> = ({ themes, activeTheme, onSelectTheme, onOpenSettings, onOpenMultiplayer }) => {
+      const [open, setOpen] = useState(false);
+      const [themesOpen, setThemesOpen] = useState(false);
+      const dialogRef = useRef<HTMLDialogElement>(null);
+      const menuButtonRef = useRef<HTMLButtonElement>(null);
+      useEffect(() => {
+        if (!themesOpen) return;
+        const dialog = dialogRef.current;
+        dialog?.showModal();
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+          dialog?.close();
+          document.body.style.overflow = previousOverflow;
+          menuButtonRef.current?.focus();
+        };
+      }, [themesOpen]);
+      const rootRef = useRef<HTMLDivElement>(null);
+    
+      const closeMenu = () => {
+        setOpen(false);
+        setThemesOpen(false);
+      };
+    
+      useEffect(() => {
+        if (!open) return;
+    
+        const handlePointerDown = (event: PointerEvent) => {
+          if (!rootRef.current?.contains(event.target as Node)) {
+            closeMenu();
+          }
+        };
+    
+        window.addEventListener('pointerdown', handlePointerDown);
+        return () => window.removeEventListener('pointerdown', handlePointerDown);
+      }, [open]);
+    
+      const handleToggleMenu = () => {
+        setOpen((value) => {
+          if (value) setThemesOpen(false);
+          return !value;
+        });
+      };
+    
+      const handleOpenSettings = () => {
+        onOpenSettings();
+        closeMenu();
+      };
+    
+      const handleSelectTheme = (themeId: string) => {
+        onSelectTheme(themeId);
+        closeMenu();
+      };
+    
+      return (
+        <div ref={rootRef} className="absolute right-0 top-0 z-20">
+          <button
+            ref={menuButtonRef}
+            onClick={handleToggleMenu}
+            className="flex h-10 w-10 items-center justify-center rounded-full shadow-md transition-transform duration-200 hover:scale-105"
+            style={{ background: activeTheme.surface, color: activeTheme.titleColor }}
+            aria-label="鎵撳紑鑿滃崟"
+            title="鑿滃崟"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+    
+          {open ? (
+            <div className="absolute right-0 mt-3 w-44 overflow-hidden rounded-2xl bg-white text-left shadow-2xl ring-1 ring-black/5">
+              <button
+                onClick={handleOpenSettings}
+                className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left transition-colors hover:bg-gray-50"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                  <Settings className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800">缂栬緫鏄庝俊鐗?/span>
+              </button>
+    
+              <button
+                onClick={() => { setOpen(false); setThemesOpen(true); }}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50"
+                aria-haspopup="dialog"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                  <Palette className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-gray-800">涓婚鍒囨崲</span><span className="mt-0.5 block truncate text-xs text-gray-400">{activeTheme.name}</span></span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+              </button>
+    
+              <button
+                onClick={() => { onOpenMultiplayer(); closeMenu(); }}
+                className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-3 text-left transition-colors hover:bg-gray-50"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700"><Users className="h-4 w-4" /></span>
+                <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800">澶氫釜杞洏</span>
+              </button>
+            </div>
+          ) : null}
+          {themesOpen && <dialog ref={dialogRef} aria-labelledby="theme-picker-title" onCancel={(event) => { event.preventDefault(); setThemesOpen(false); }}
+            onClick={(event) => { if (event.target === event.currentTarget) { const rect = event.currentTarget.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) setThemesOpen(false); } }}
+            className="m-auto w-[calc(100%_-_2rem)] max-w-2xl overflow-hidden rounded-[2rem] border border-white bg-[#fffdf7] p-0 text-left text-gray-800 shadow-2xl backdrop:bg-black/35 backdrop:backdrop-blur-sm">
+            <div className="flex max-h-[85dvh] flex-col">
+              <header className="flex shrink-0 items-start justify-between gap-4 px-6 pb-5 pt-6 sm:px-8 sm:pt-8">
+                <div><p className="mb-2 text-[10px] font-bold tracking-[.25em] text-amber-700/60">CHOOSE YOUR MOOD</p><h2 id="theme-picker-title" className="text-2xl font-bold">鎹釜涓婚锛屾崲绉嶅績鎯?/h2><p className="mt-2 text-sm text-gray-500">閫夋嫨浣犳兂寮€鍚殑涓栫晫</p></div>
+                <button type="button" aria-label="鍏抽棴涓婚閫夋嫨" onClick={() => setThemesOpen(false)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/5 text-gray-500 hover:bg-black/10"><X size={18} /></button>
+              </header>
+              <div className="grid min-h-0 grid-cols-2 gap-3 overflow-y-auto px-6 pb-6 sm:grid-cols-3 sm:gap-4 sm:px-8 sm:pb-8">
+                {themes.map((theme) => {
+                  const selected = theme.id === activeTheme.id;
+                  return <button type="button" key={theme.id} aria-pressed={selected} onClick={() => handleSelectTheme(theme.id)}
+                    className="relative flex min-h-40 flex-col items-start rounded-2xl border-2 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+                    style={{ background: theme.background, borderColor: selected ? theme.accentColor : 'transparent' }}>
+                    {selected && <span className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full bg-white/90" style={{ color: theme.titleColor }}><Check size={15} /></span>}
+                    <span className="mb-4 text-3xl" aria-hidden="true">{theme.icon}</span>
+                    <strong className="text-sm sm:text-base" style={{ color: theme.titleColor }}>{theme.name}</strong>
+                    <span className="mt-auto flex flex-wrap gap-1 pt-4" aria-hidden="true">{theme.preview.colors.map((color, index) => <span key={index} className="h-2 w-4 rounded-full" style={{ background: color }} />)}</span>
+                  </button>;
+                })}
+              </div>
+            </div>
+          </dialog>}
+        </div>
+      );
+    };
+    
+    export default HeaderMenu;
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///D:/0-DeskMove/0829%20Banana%EF%BC%86seedream/1204%20%20%E5%85%A8%E6%A0%88%E8%AE%BE%E8%AE%A1%E5%B8%88/4%E3%80%81%E6%98%8E%E4%BF%A1%E7%89%87%E6%8A%BD%E5%8D%A1%201225/tests/header-menu-source.test.ts:34:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: HeaderMenu uses a narrower menu and removes top-level action subtitles
+ok 12 - HeaderMenu uses a narrower menu and removes top-level action subtitles
+  ---
+  duration_ms: 1.2119
+  type: 'test'
+  ...
+# Subtest: summer start button artwork is contained instead of cropped
+ok 13 - summer start button artwork is contained instead of cropped
+  ---
+  duration_ms: 2.169
+  type: 'test'
+  ...
+# Subtest: result modal reserves a landscape postcard frame for card images
+ok 14 - result modal reserves a landscape postcard frame for card images
+  ---
+  duration_ms: 0.4645
+  type: 'test'
+  ...
+# Subtest: segments match requested percentages
+ok 15 - segments match requested percentages
+  ---
+  duration_ms: 2.3173
+  type: 'test'
+  ...
+# Subtest: every multiplayer round contains different results, including constant random sources
+ok 16 - every multiplayer round contains different results, including constant random sources
+  ---
+  duration_ms: 20.7697
+  type: 'test'
+  ...
+# Subtest: single player preserves the requested distribution
+ok 17 - single player preserves the requested distribution
+  ---
+  duration_ms: 9.3986
+  type: 'test'
+  ...
+# Subtest: successive rotations land inside the selected weighted slice
+ok 18 - successive rotations land inside the selected weighted slice
+  ---
+  duration_ms: 1.1616
+  type: 'test'
+  ...
+# Subtest: App passes up to ten cards to the wheel and editor
+ok 19 - App passes up to ten cards to the wheel and editor
+  ---
+  duration_ms: 1.3076
+  type: 'test'
+  ...
+# Subtest: Settings modal can add and delete postcards up to the shared limit
+ok 20 - Settings modal can add and delete postcards up to the shared limit
+  ---
+  duration_ms: 0.2995
+  type: 'test'
+  ...
+# Subtest: restricted spins always land on one of the first two visible segments
+ok 21 - restricted spins always land on one of the first two visible segments
+  ---
+  duration_ms: 4.3603
+  type: 'test'
+  ...
+# Subtest: development builds unregister stale service workers that can cache broken image responses
+ok 22 - development builds unregister stale service workers that can cache broken image responses
+  ---
+  duration_ms: 1.6085
+  type: 'test'
+  ...
+# Subtest: service worker only caches real image or audio responses, not html fallbacks
+ok 23 - service worker only caches real image or audio responses, not html fallbacks
+  ---
+  duration_ms: 0.3586
+  type: 'test'
+  ...
+# Subtest: ResultModal spin-again action requests another wheel spin from App
+ok 24 - ResultModal spin-again action requests another wheel spin from App
+  ---
+  duration_ms: 1.1301
+  type: 'test'
+  ...
+# Subtest: Wheel responds to spin-again requests after the initial render
+ok 25 - Wheel responds to spin-again requests after the initial render
+  ---
+  duration_ms: 0.2348
+  type: 'test'
+  ...
+# Subtest: registers christmas as the default theme and summer as an alternate theme
+ok 26 - registers christmas as the default theme and summer as an alternate theme
+  ---
+  duration_ms: 0.9169
+  type: 'test'
+  ...
+# Subtest: falls back to the default theme when a saved theme id is unknown
+ok 27 - falls back to the default theme when a saved theme id is unknown
+  ---
+  duration_ms: 0.3065
+  type: 'test'
+  ...
+# Subtest: summer theme uses its dedicated three-track background music set
+ok 28 - summer theme uses its dedicated three-track background music set
+  ---
+  duration_ms: 1.2715
+  type: 'test'
+  ...
+# Subtest: summer theme uses the Jieyou wind-facing header copy
+ok 29 - summer theme uses the Jieyou wind-facing header copy
+  ---
+  duration_ms: 0.2149
+  type: 'test'
+  ...
+# Subtest: summer theme uses the self-love footer copy
+ok 30 - summer theme uses the self-love footer copy
+  ---
+  duration_ms: 0.2354
+  type: 'test'
+  ...
+# Subtest: summer postcard image and sound assets stay aligned with card order
+ok 31 - summer postcard image and sound assets stay aligned with card order
+  ---
+  duration_ms: 0.2436
+  type: 'test'
+  ...
+# Subtest: summer postcard image and logo files exist in public assets
+ok 32 - summer postcard image and logo files exist in public assets
+  ---
+  duration_ms: 1.829
+  type: 'test'
+  ...
+# Subtest: summer saved cards fall back from stale local image paths to theme assets
+ok 33 - summer saved cards fall back from stale local image paths to theme assets
+  ---
+  duration_ms: 0.8412
+  type: 'test'
+  ...
+# Subtest: summer saved cards fall back from stale local sounds to the card-order sound
+ok 34 - summer saved cards fall back from stale local sounds to the card-order sound
+  ---
+  duration_ms: 0.4207
+  type: 'test'
+  ...
+# Subtest: keeps edited postcard data isolated per theme
+ok 35 - keeps edited postcard data isolated per theme
+  ---
+  duration_ms: 0.3327
+  type: 'test'
+  ...
+# Subtest: card storage supports up to ten postcards per theme
+ok 36 - card storage supports up to ten postcards per theme
+  ---
+  duration_ms: 0.4296
+  type: 'test'
+  ...
+# Subtest: each built-in theme is complete enough to drive the wheel UI
+ok 37 - each built-in theme is complete enough to drive the wheel UI
+  ---
+  duration_ms: 0.127
+  type: 'test'
+  ...
+# Subtest: production build does not inject the Trae Solo badge
+ok 38 - production build does not inject the Trae Solo badge
+  ---
+  duration_ms: 1.193
+  type: 'test'
+  ...
+# Subtest: Wheel plays result audio from the selected card instead of an index-preloaded array
+ok 39 - Wheel plays result audio from the selected card instead of an index-preloaded array
+  ---
+  duration_ms: 1.3407
+  type: 'test'
+  ...
+# Subtest: Wheel does not unlock all result audio files on the first spin
+ok 40 - Wheel does not unlock all result audio files on the first spin
+  ---
+  duration_ms: 0.2862
+  type: 'test'
+  ...
+# Subtest: Wheel lets spin audio finish naturally when the result card sound starts
+ok 41 - Wheel lets spin audio finish naturally when the result card sound starts
+  ---
+  duration_ms: 0.4261
+  type: 'test'
+  ...
+# Subtest: Wheel tracks spin audio effect state independently from card audio
+ok 42 - Wheel tracks spin audio effect state independently from card audio
+  ---
+  duration_ms: 0.2134
+  type: 'test'
+  ...
+# Subtest: wheel selection matches the visual segment under the pointer
+ok 43 - wheel selection matches the visual segment under the pointer
+  ---
+  duration_ms: 1.7596
+  type: 'test'
+  ...
+# Subtest: unrotated wheel selects the segment visually centered at the top pointer
+ok 44 - unrotated wheel selects the segment visually centered at the top pointer
+  ---
+  duration_ms: 0.2962
+  type: 'test'
+  ...
+1..44
+# tests 44
+# suites 0
+# pass 42
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1083.2012

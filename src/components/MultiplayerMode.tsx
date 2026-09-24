@@ -6,7 +6,7 @@ import { resolveAssetPath } from '../lib/assetPaths';
 import { useAudioBus } from '../store/audioBus';
 import ResultModal from './ResultModal';
 import { relaxedTheme } from '../themes/relaxed';
-import { drawAdventureBonus } from '../lib/adventureBonus';
+import { createAdventureBonusDrawer } from '../lib/adventureBonus';
 
 interface Props { theme: AppTheme; initialCount: number; onExit: () => void }
 interface Player { id: number; rotation: number; result: number | null; duration: number; finished: boolean }
@@ -19,6 +19,46 @@ const slices = multiplayerSegments.map(segment => {
   return { ...segment, start, end: boundary, middle: (start + boundary) / 2 };
 });
 const background = `conic-gradient(${slices.map(s => `${s.color} ${s.start}deg ${s.end}deg`).join(',')})`;
+
+// 魔鬼卡的固定配乐改为多版本随机：把新文件放进 public/audio 即可生效。
+const devilMusicFallback = '/audio/adventure-devil-music.mp3';
+const devilMusicCandidates = [
+  '/audio/adventure-devil1-music.mp3',
+  '/audio/adventure-devil2-music.mp3',
+  '/audio/adventure-devil3-music.mp3',
+];
+const devilMusicAvailability = new Map<string, Promise<boolean>>();
+const probeAudioExists = (src: string): Promise<boolean> => {
+  const cached = devilMusicAvailability.get(src);
+  if (cached) return cached;
+  const probe = new Promise<boolean>(resolve => {
+    const audio = new Audio();
+    const done = (ok: boolean) => {
+      audio.onloadedmetadata = null;
+      audio.onerror = null;
+      devilMusicAvailability.set(src, Promise.resolve(ok));
+      resolve(ok);
+    };
+    audio.onloadedmetadata = () => done(true);
+    audio.onerror = () => done(false);
+    audio.preload = 'metadata';
+    audio.src = resolveAssetPath(src);
+  });
+  devilMusicAvailability.set(src, probe);
+  return probe;
+};
+// 每次播放随机挑一首；缺失的候选自动跳过，全部缺失时回退到原始配乐。
+const pickDevilMusic = async (): Promise<string> => {
+  const order = devilMusicCandidates.slice();
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  for (const src of order) {
+    if (await probeAudioExists(src)) return src;
+  }
+  return devilMusicFallback;
+};
 
 export function PlayerCountDialog({ initialCount, onConfirm, onClose }: {
   initialCount: number; onConfirm: (count: number) => void; onClose: () => void;
@@ -48,14 +88,20 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
   const locked = useRef(false);
   const [spinning, setSpinning] = useState(false);
   const [editing, setEditing] = useState(false);
+  // 彩蛋冷却跨整局保留：组件随 multiplayerSession 重建时自然重置。
+  const bonusDrawer = useRef(createAdventureBonusDrawer());
   const [resultQueue, setResultQueue] = useState<number[]>([]);
   const [bonusIndex, setBonusIndex] = useState<0 | 1 | null>(null);
-  const showingBonus = resultQueue.length === 0 && bonusIndex !== null;
+  const [bonusShown, setBonusShown] = useState(false);
+  // 彩蛋卡优先展示：触发时先弹彩蛋，关闭后再依次展示抽中的卡片。
+  const showingBonus = bonusIndex !== null && !bonusShown;
   const spinAudio = useRef<HTMLAudioElement | null>(null);
   const afterSpinAudio = useRef<(() => void) | null>(null);
   const resultAudio = useRef<HTMLAudioElement[] | null>(null);
   const exclusiveResult = useRef(false);
+  const playSequence = useRef(0);
   const stopResultAudio = useCallback(() => {
+    playSequence.current += 1;
     const group = resultAudio.current;
     if (!group) return;
     resultAudio.current = null;
@@ -71,12 +117,17 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
     }
   }, []);
   const playResults = (results: number[], audioTheme = theme) => {
-    const playNext = (position: number) => {
+    const playNext = async (position: number) => {
       if (position >= results.length) return;
+      const token = playSequence.current;
       const card = audioTheme.cards[results[position]];
-      const fixedMusic = audioTheme.id === 'adventure'
-        ? ({ 'adventure-1': '/audio/adventure-devil-music.mp3', 'adventure-2': '/audio/adventure-angel-music.mp3' } as Record<string, string>)[card?.id ?? '']
-        : undefined;
+      let fixedMusic: string | undefined;
+      if (audioTheme.id === 'adventure') {
+        if (card?.id === 'adventure-2') fixedMusic = '/audio/adventure-angel-music.mp3';
+        else if (card?.id === 'adventure-1') fixedMusic = await pickDevilMusic();
+        // 探测期间用户关闭了弹窗或开始了新一抽，放弃本次播放。
+        if (playSequence.current !== token) return;
+      }
       const exclusive = Boolean(fixedMusic);
       const sounds = card?.sound ? [card.sound] : [];
       if (fixedMusic) sounds.push(fixedMusic);
@@ -152,6 +203,7 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
     locked.current = true;
     setResultQueue([]);
     setBonusIndex(null);
+    setBonusShown(false);
     setSpinning(true);
     setEditing(false);
     stopResultAudio();
@@ -186,9 +238,15 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
       if (pendingStops.current.size === 0) {
         locked.current = false;
         setSpinning(false);
+        const bonus = theme.id === 'adventure' ? bonusDrawer.current() : null;
         setResultQueue(results);
-        setBonusIndex(theme.id === 'adventure' ? drawAdventureBonus() : null);
-        finishSpinAudioLoop(() => playResults(results));
+        setBonusIndex(bonus);
+        setBonusShown(false);
+        finishSpinAudioLoop(() => {
+          // 彩蛋卡先出场：先播彩蛋语音；未触发时按原顺序播抽中卡片的语音。
+          if (bonus !== null) playResults([bonus], relaxedTheme);
+          else playResults(results);
+        });
       }
       };
       pendingStops.current.set(player.id, finish);
@@ -243,16 +301,19 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
         if (showingBonus) {
           afterSpinAudio.current = null;
           stopResultAudio();
-          setBonusIndex(null);
+          setBonusShown(true);
+          if (resultQueue.length) {
+            const playDrawn = () => playResults(resultQueue);
+            // 极速关闭时仍需等待转盘音效的余音。
+            if (spinAudio.current) afterSpinAudio.current = playDrawn;
+            else playDrawn();
+          } else {
+            setBonusIndex(null);
+          }
         } else {
           stopResultAudio();
           afterSpinAudio.current = null;
-          if (resultQueue.length === 1 && bonusIndex !== null) {
-            const playBonus = () => playResults([bonusIndex], relaxedTheme);
-            // A fast dismissal must still wait for the remaining spin tail.
-            if (spinAudio.current) afterSpinAudio.current = playBonus;
-            else playBonus();
-          } else if (resultQueue.length > 1) {
+          if (resultQueue.length > 1) {
             const playRemaining = () => playResults(resultQueue.slice(1));
             if (spinAudio.current) afterSpinAudio.current = playRemaining;
             else playRemaining();
