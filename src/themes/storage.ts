@@ -63,8 +63,14 @@ const normalizeCards = (themeId: string, cards: unknown, fallback: Postcard[]) =
       }
       const updatedCard = fallback.find((card) => card.id === partial.id);
       if (updatedCard && (
-        (partial.id === 'relaxed-1' && partial.content === '放轻松，稳住表情，开始你的表演！') ||
-        (partial.id === 'relaxed-2' && partial.content === '放开想象，自由发挥，快乐就是今天的主旋律！')
+        (partial.id === 'relaxed-1' && (
+          partial.content === '放轻松，稳住表情，开始你的表演！' ||
+          partial.content === '直接轻松绷住了'
+        )) ||
+        (partial.id === 'relaxed-2' && (
+          partial.content === '放开想象，自由发挥，快乐就是今天的主旋律！' ||
+          partial.content === '我们受过严格的训练，无论多好笑呢，我们都不会笑'
+        ))
       )) partial.content = updatedCard.content;
       if (updatedCard && (partial.id === 'relaxed-1' || partial.id === 'relaxed-2') &&
           partial.image === `/images/themes/relaxed/card-0${partial.id.slice(-1)}.svg`) {

@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { resolveAssetPath } from '../lib/assetPaths';
+import { pickOptionalCardMusic } from '../lib/availableCardMusic';
+import { selectCardSound } from '../lib/relaxedCardAudio';
 import { WHEEL_GRADIENT_START_OFFSET, getWheelSelectedIndex, getRestrictedWheelRotation } from '../lib/wheelSelection';
 import { useAudioBus } from '../store/audioBus';
 import type { AppTheme, Postcard } from '../themes';
@@ -19,6 +21,10 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
   const wheelRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const resultAudioRef = useRef<HTMLAudioElement | null>(null);
+  const backingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const resultAudioActiveRef = useRef(false);
+  const resultExclusiveRef = useRef(false);
+  const resultSequenceRef = useRef(0);
   const spinAudioActiveRef = useRef(false);
   const lastHandledSpinRequestRef = useRef(spinRequestId);
 
@@ -55,24 +61,36 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
   }, [endAudioEffect]);
 
   const createResultAudio = useCallback((card: Postcard) => {
-    const audio = new Audio(resolveAssetPath(card.sound || '/audio/card1.mp3'));
+    const audio = new Audio(resolveAssetPath(selectCardSound(theme.id, card) || '/audio/card1.mp3'));
     audio.preload = 'auto';
     audio.loop = false;
     return audio;
-  }, []);
+  }, [theme.id]);
 
   const stopResultAudio = useCallback(() => {
-    const resultAudio = resultAudioRef.current;
-    if (!resultAudio) return;
-
-    try {
-      resultAudio.pause();
-      resultAudio.currentTime = 0;
-      resultAudio.onended = null;
-    } catch {
-      // Ignore browsers that reject resetting an unloaded audio element.
+    resultSequenceRef.current += 1;
+    for (const audio of [resultAudioRef.current, backingAudioRef.current]) {
+      if (!audio) continue;
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.onended = null;
+        audio.onerror = null;
+      } catch {
+        // Ignore browsers that reject resetting an unloaded audio element.
+      }
     }
-  }, []);
+    resultAudioRef.current = null;
+    backingAudioRef.current = null;
+    if (resultAudioActiveRef.current) {
+      resultAudioActiveRef.current = false;
+      endAudioEffect();
+    }
+    if (resultExclusiveRef.current) {
+      resultExclusiveRef.current = false;
+      useAudioBus.getState().endExclusive();
+    }
+  }, [endAudioEffect]);
 
   const prepareSelectedCardSound = useCallback((card: Postcard) => {
     stopResultAudio();
@@ -101,25 +119,51 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     }
   }, [createResultAudio, stopResultAudio]);
 
-  const playSelectedCardSound = useCallback((card: Postcard) => {
-    const selectionAudio = resultAudioRef.current ?? createResultAudio(card);
-    resultAudioRef.current = selectionAudio;
+  const playSelectedCardSound = useCallback(async (card: Postcard) => {
+    const sequence = resultSequenceRef.current;
+    let backingSound: string | null = null;
+    try {
+      backingSound = await pickOptionalCardMusic(card.id);
+    } catch {
+      // The card voice can still play when optional music cannot be checked.
+    }
+    if (sequence !== resultSequenceRef.current) return;
 
     try {
-      selectionAudio.pause();
-      selectionAudio.currentTime = 0;
-      selectionAudio.muted = false;
-      selectionAudio.volume = 1;
-      selectionAudio.play().catch(() => undefined);
+      const selectionAudio = resultAudioRef.current ?? createResultAudio(card);
+      const backingAudio = backingSound ? new Audio(resolveAssetPath(backingSound)) : null;
+      resultAudioRef.current = selectionAudio;
+      backingAudioRef.current = backingAudio;
+      const group = backingAudio ? [selectionAudio, backingAudio] : [selectionAudio];
+      const pending = new Set(group);
+
       startAudioEffect();
-      selectionAudio.onended = () => {
-        endAudioEffect();
-        selectionAudio.onended = null;
-      };
+      resultAudioActiveRef.current = true;
+      if (backingAudio) {
+        useAudioBus.getState().startExclusive();
+        resultExclusiveRef.current = true;
+        backingAudio.volume = 0.6;
+      }
+
+      group.forEach(audio => {
+        const finished = () => {
+          if (sequence !== resultSequenceRef.current || !pending.delete(audio)) return;
+          audio.onended = null;
+          audio.onerror = null;
+          if (pending.size === 0) stopResultAudio();
+        };
+        audio.onended = finished;
+        audio.onerror = finished;
+        audio.pause();
+        audio.currentTime = 0;
+        audio.muted = false;
+        if (audio === selectionAudio) audio.volume = 1;
+        try { void audio.play().catch(finished); } catch { finished(); }
+      });
     } catch {
-      // Ignore result audio playback failures; the visual result should still appear.
+      stopResultAudio();
     }
-  }, [createResultAudio, endAudioEffect, startAudioEffect]);
+  }, [createResultAudio, startAudioEffect, stopResultAudio]);
 
   const startSpinAudio = useCallback(() => {
     const spinAudio = audioRef.current;

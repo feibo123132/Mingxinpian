@@ -3,6 +3,10 @@ import { Minus, Plus, Users, X } from 'lucide-react';
 import type { AppTheme } from '../themes';
 import { drawMultiplayer, multiplayerSegments, rotationForResult } from '../lib/multiplayer';
 import { resolveAssetPath } from '../lib/assetPaths';
+import { createAngelMusicPicker } from '../lib/adventureAngelAudio';
+import { createDevilMusicPicker } from '../lib/adventureDevilAudio';
+import { pickOptionalCardMusic } from '../lib/availableCardMusic';
+import { selectCardSound } from '../lib/relaxedCardAudio';
 import { useAudioBus } from '../store/audioBus';
 import ResultModal from './ResultModal';
 import { relaxedTheme } from '../themes/relaxed';
@@ -20,45 +24,8 @@ const slices = multiplayerSegments.map(segment => {
 });
 const background = `conic-gradient(${slices.map(s => `${s.color} ${s.start}deg ${s.end}deg`).join(',')})`;
 
-// 魔鬼卡的固定配乐改为多版本随机：把新文件放进 public/audio 即可生效。
-const devilMusicFallback = '/audio/adventure-devil-music.mp3';
-const devilMusicCandidates = [
-  '/audio/adventure-devil1-music.mp3',
-  '/audio/adventure-devil2-music.mp3',
-  '/audio/adventure-devil3-music.mp3',
-];
-const devilMusicAvailability = new Map<string, Promise<boolean>>();
-const probeAudioExists = (src: string): Promise<boolean> => {
-  const cached = devilMusicAvailability.get(src);
-  if (cached) return cached;
-  const probe = new Promise<boolean>(resolve => {
-    const audio = new Audio();
-    const done = (ok: boolean) => {
-      audio.onloadedmetadata = null;
-      audio.onerror = null;
-      devilMusicAvailability.set(src, Promise.resolve(ok));
-      resolve(ok);
-    };
-    audio.onloadedmetadata = () => done(true);
-    audio.onerror = () => done(false);
-    audio.preload = 'metadata';
-    audio.src = resolveAssetPath(src);
-  });
-  devilMusicAvailability.set(src, probe);
-  return probe;
-};
-// 每次播放随机挑一首；缺失的候选自动跳过，全部缺失时回退到原始配乐。
-const pickDevilMusic = async (): Promise<string> => {
-  const order = devilMusicCandidates.slice();
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [order[i], order[j]] = [order[j], order[i]];
-  }
-  for (const src of order) {
-    if (await probeAudioExists(src)) return src;
-  }
-  return devilMusicFallback;
-};
+const pickAngelMusic = createAngelMusicPicker();
+const pickDevilMusic = createDevilMusicPicker();
 
 export function PlayerCountDialog({ initialCount, onConfirm, onClose }: {
   initialCount: number; onConfirm: (count: number) => void; onClose: () => void;
@@ -122,18 +89,18 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
       const token = playSequence.current;
       const card = audioTheme.cards[results[position]];
       let fixedMusic: string | undefined;
-      if (audioTheme.id === 'adventure') {
-        if (card?.id === 'adventure-2') fixedMusic = '/audio/adventure-angel-music.mp3';
-        else if (card?.id === 'adventure-1') fixedMusic = await pickDevilMusic();
-        // 探测期间用户关闭了弹窗或开始了新一抽，放弃本次播放。
-        if (playSequence.current !== token) return;
-      }
+      if (card?.id === 'adventure-2') fixedMusic = pickAngelMusic();
+      else if (card?.id === 'adventure-1') fixedMusic = pickDevilMusic();
+      else if (card) fixedMusic = (await pickOptionalCardMusic(card.id)) ?? undefined;
+      if (playSequence.current !== token) return;
       const exclusive = Boolean(fixedMusic);
-      const sounds = card?.sound ? [card.sound] : [];
+      const cardSound = card ? selectCardSound(audioTheme.id, card) : '';
+      const sounds = cardSound ? [cardSound] : [];
       if (fixedMusic) sounds.push(fixedMusic);
       if (!sounds.length) { playNext(position + 1); return; }
       try {
         const group = sounds.map(sound => new Audio(resolveAssetPath(sound)));
+        if (fixedMusic && card?.id !== 'adventure-1') group[group.length - 1].volume = 0.6;
         resultAudio.current = group;
         useAudioBus.getState().startEffect();
         exclusiveResult.current = exclusive;
