@@ -12,7 +12,7 @@ import { useAudioBus } from '../store/audioBus';
 import ResultModal, { type CardPlaybackState } from './ResultModal';
 import { relaxedTheme } from '../themes/relaxed';
 import { createAdventureBonusDrawer, createFateTenBonusSchedule } from '../lib/adventureBonus';
-import { drawFixedMode, type SequenceFixedMode } from '../lib/fixedModes';
+import { createFateTenDrawSequence, drawFixedMode, type SequenceFixedMode } from '../lib/fixedModes';
 import type { CardBox } from '../lib/cardBox';
 import type { RelaxedAudioPair } from '../lib/relaxedAudioPairs';
 
@@ -76,6 +76,7 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
   // 彩蛋冷却跨整局保留：组件随 multiplayerSession 重建时自然重置。
   const bonusDrawer = useRef(createAdventureBonusDrawer());
   const [fixedBonusSchedule] = useState(() => fixedMode?.id === 'fate-ten' ? createFateTenBonusSchedule() : null);
+  const [fixedDrawSequence] = useState(() => fixedMode?.id === 'fate-ten' ? createFateTenDrawSequence() : null);
   const [resultQueue, setResultQueue] = useState<number[]>([]);
   const [showingCompletion, setShowingCompletion] = useState(false);
   const [bonusIndex, setBonusIndex] = useState<0 | 1 | null>(null);
@@ -215,7 +216,7 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
   const draw = () => {
     if (locked.current) return;
     const drawNumber = fixedDrawCount + 1;
-    const fixedResult = fixedMode ? drawFixedMode(fixedMode, drawNumber) : null;
+    const fixedResult = fixedMode ? fixedDrawSequence ? fixedDrawSequence[drawNumber - 1] ?? null : drawFixedMode(fixedMode, drawNumber) : null;
     if (fixedMode && (fixedResult === null || players.length !== 1)) return;
     locked.current = true;
     if (fixedMode) setFixedDrawCount(count => count + 1);
