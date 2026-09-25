@@ -21,6 +21,7 @@ export const adventureTheme: AppTheme = {
     title: segment.label,
     content: ['传说来自天堂的魔鬼！', '我来助你！', '给个提示呗', '简简单单啦', '复活吧！我的勇士！'][index],
     image: `/images/adventure-card-${String(index + 1).padStart(2, '0')}.png`,
+    video: `/videos/adventure-card-${String(index + 1).padStart(2, '0')}.mp4`,
     sound: `/audio/adventure-card-${String(index + 1).padStart(2, '0')}.mp3`,
   })),
 };

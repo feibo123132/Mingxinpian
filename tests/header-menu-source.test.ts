@@ -31,8 +31,8 @@ test('HeaderMenu keeps theme options collapsed by default', () => {
   const menuSource = readFileSync(new URL('../src/components/HeaderMenu.tsx', import.meta.url), 'utf8');
 
   assert.match(menuSource, /const \[themesOpen, setThemesOpen\] = useState\(false\)/);
-  assert.match(menuSource, /setThemesOpen\(\(value\) => !value\)/);
-  assert.match(menuSource, /\{themesOpen \? \(/);
+  assert.match(menuSource, /setThemesOpen\(true\)/);
+  assert.match(menuSource, /\{themesOpen && <dialog/);
 });
 
 test('HeaderMenu uses a narrower menu and removes top-level action subtitles', () => {

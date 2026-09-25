@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { resolveAssetPath } from '../lib/assetPaths';
 import { pickOptionalCardMusic } from '../lib/availableCardMusic';
 import { selectCardSound } from '../lib/relaxedCardAudio';
+import { pausePendingCardAudio, resumePendingCardAudio } from '../lib/cardAudioControls';
 import { WHEEL_GRADIENT_START_OFFSET, getWheelSelectedIndex, getRestrictedWheelRotation } from '../lib/wheelSelection';
+import type { RelaxedAudioPair } from '../lib/relaxedAudioPairs';
 import { useAudioBus } from '../store/audioBus';
 import type { AppTheme, Postcard } from '../themes';
 
@@ -10,10 +12,20 @@ interface WheelProps {
   cards: Postcard[];
   theme: AppTheme;
   spinRequestId?: number;
+  fixedAudioPair?: RelaxedAudioPair | null;
   onSpinComplete: (card: Postcard) => void;
+  onCardAudioStarted: () => void;
+  onCardAudioFinished: () => void;
 }
 
-const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinComplete }) => {
+export interface WheelHandle {
+  replayCardAudio: () => boolean;
+  pauseCardAudio: () => boolean;
+  resumeCardAudio: () => boolean;
+  stopCardAudio: () => void;
+}
+
+const Wheel = React.forwardRef<WheelHandle, WheelProps>(function Wheel({ cards, theme, spinRequestId = 0, fixedAudioPair, onSpinComplete, onCardAudioStarted, onCardAudioFinished }, ref) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [startImageSrc, setStartImageSrc] = useState('');
@@ -22,6 +34,8 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const resultAudioRef = useRef<HTMLAudioElement | null>(null);
   const backingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingCardAudioRef = useRef<Set<HTMLAudioElement> | null>(null);
+  const lastCardAudioRef = useRef<{ card: Postcard; voiceSrc: string; backingSound: string | null } | null>(null);
   const resultAudioActiveRef = useRef(false);
   const resultExclusiveRef = useRef(false);
   const resultSequenceRef = useRef(0);
@@ -60,8 +74,8 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     endAudioEffect();
   }, [endAudioEffect]);
 
-  const createResultAudio = useCallback((card: Postcard) => {
-    const audio = new Audio(resolveAssetPath(selectCardSound(theme.id, card) || '/audio/card1.mp3'));
+  const createResultAudio = useCallback((card: Postcard, selectedSound?: string) => {
+    const audio = new Audio(resolveAssetPath(selectedSound || selectCardSound(theme.id, card) || '/audio/card1.mp3'));
     audio.preload = 'auto';
     audio.loop = false;
     return audio;
@@ -69,6 +83,7 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
 
   const stopResultAudio = useCallback(() => {
     resultSequenceRef.current += 1;
+    pendingCardAudioRef.current = null;
     for (const audio of [resultAudioRef.current, backingAudioRef.current]) {
       if (!audio) continue;
       try {
@@ -92,10 +107,11 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     }
   }, [endAudioEffect]);
 
-  const prepareSelectedCardSound = useCallback((card: Postcard) => {
+  const prepareSelectedCardSound = useCallback((card: Postcard, selectedSound?: string) => {
     stopResultAudio();
+    lastCardAudioRef.current = null;
 
-    const resultAudio = createResultAudio(card);
+    const resultAudio = createResultAudio(card, selectedSound);
     resultAudioRef.current = resultAudio;
 
     try {
@@ -119,26 +135,35 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     }
   }, [createResultAudio, stopResultAudio]);
 
-  const playSelectedCardSound = useCallback(async (card: Postcard) => {
+  const playSelectedCardSound = useCallback(async (
+    card: Postcard,
+    replay?: { voiceSrc: string; backingSound: string | null },
+    selectedPair?: RelaxedAudioPair | null,
+  ) => {
     const sequence = resultSequenceRef.current;
-    let backingSound: string | null = null;
-    try {
-      backingSound = await pickOptionalCardMusic(card.id);
-    } catch {
-      // The card voice can still play when optional music cannot be checked.
+    let backingSound = replay?.backingSound ?? selectedPair?.music ?? null;
+    if (!replay && !selectedPair) {
+      try {
+        backingSound = await pickOptionalCardMusic(card.id);
+      } catch {
+        // The card voice can still play when optional music cannot be checked.
+      }
     }
     if (sequence !== resultSequenceRef.current) return;
 
     try {
-      const selectionAudio = resultAudioRef.current ?? createResultAudio(card);
+      const selectionAudio = replay ? new Audio(replay.voiceSrc) : resultAudioRef.current ?? createResultAudio(card);
       const backingAudio = backingSound ? new Audio(resolveAssetPath(backingSound)) : null;
+      lastCardAudioRef.current = { card, voiceSrc: selectionAudio.src, backingSound };
       resultAudioRef.current = selectionAudio;
       backingAudioRef.current = backingAudio;
       const group = backingAudio ? [selectionAudio, backingAudio] : [selectionAudio];
       const pending = new Set(group);
+      pendingCardAudioRef.current = pending;
 
       startAudioEffect();
       resultAudioActiveRef.current = true;
+      onCardAudioStarted();
       if (backingAudio) {
         useAudioBus.getState().startExclusive();
         resultExclusiveRef.current = true;
@@ -150,7 +175,10 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
           if (sequence !== resultSequenceRef.current || !pending.delete(audio)) return;
           audio.onended = null;
           audio.onerror = null;
-          if (pending.size === 0) stopResultAudio();
+          if (pending.size === 0) {
+            stopResultAudio();
+            onCardAudioFinished();
+          }
         };
         audio.onended = finished;
         audio.onerror = finished;
@@ -162,8 +190,29 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
       });
     } catch {
       stopResultAudio();
+      onCardAudioFinished();
     }
-  }, [createResultAudio, startAudioEffect, stopResultAudio]);
+  }, [createResultAudio, onCardAudioFinished, onCardAudioStarted, startAudioEffect, stopResultAudio]);
+
+  React.useImperativeHandle(ref, () => ({
+    replayCardAudio: () => {
+      const last = lastCardAudioRef.current;
+      if (!last) return false;
+      stopResultAudio();
+      void playSelectedCardSound(last.card, last);
+      return true;
+    },
+    pauseCardAudio: () => {
+      return pausePendingCardAudio(pendingCardAudioRef.current);
+    },
+    resumeCardAudio: () => {
+      return resumePendingCardAudio(pendingCardAudioRef.current);
+    },
+    stopCardAudio: () => {
+      stopResultAudio();
+      lastCardAudioRef.current = null;
+    },
+  }), [playSelectedCardSound, stopResultAudio]);
 
   const startSpinAudio = useCallback(() => {
     const spinAudio = audioRef.current;
@@ -258,7 +307,7 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     const selectedIndex = getWheelSelectedIndex(finalRotation, cards.length);
     const selectedCard = cards[selectedIndex];
 
-    prepareSelectedCardSound(selectedCard);
+    prepareSelectedCardSound(selectedCard, fixedAudioPair?.sound);
     startSpinAudio();
 
     setRotation(finalRotation);
@@ -267,7 +316,7 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
       setIsSpinning(false);
 
       if (theme.id === 'relaxed') {
-        finishSpinAudioLoop(() => playSelectedCardSound(selectedCard));
+        finishSpinAudioLoop(() => playSelectedCardSound(selectedCard, undefined, fixedAudioPair));
       } else {
         finishSpinAudioLoop();
         playSelectedCardSound(selectedCard);
@@ -280,6 +329,7 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
     }
   }, [
     cards,
+    fixedAudioPair,
     finishSpinAudioLoop,
     isSpinning,
     onSpinComplete,
@@ -434,6 +484,6 @@ const Wheel: React.FC<WheelProps> = ({ cards, theme, spinRequestId = 0, onSpinCo
       </button>
     </div>
   );
-};
+});
 
 export default Wheel;

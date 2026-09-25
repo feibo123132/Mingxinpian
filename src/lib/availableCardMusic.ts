@@ -50,6 +50,29 @@ export const createAvailableMusicPicker = (
   };
 };
 
+export const completionVoiceCandidates = [
+  '/audio/adventure-completion-voice1.mp3',
+  '/audio/adventure-completion-voice2.mp3',
+];
+
+export const completionMusicCandidates = [
+  '/audio/adventure-completion-music1.mp3',
+  '/audio/adventure-completion-music2.mp3',
+];
+
+export const createCompletionAudioPicker = (
+  isAvailable: (src: string) => Promise<boolean>,
+  random = Math.random,
+) => {
+  const pickVoice = createAvailableMusicPicker(completionVoiceCandidates, isAvailable, random);
+  const pickMusic = createAvailableMusicPicker(completionMusicCandidates, isAvailable, random);
+
+  return async () => {
+    const [voice, music] = await Promise.all([pickVoice(), pickMusic()]);
+    return { voice, music };
+  };
+};
+
 const knownAudio = new Map<string, Promise<boolean>>();
 const probeAudio = (src: string): Promise<boolean> => {
   const cached = knownAudio.get(src);
@@ -96,3 +119,4 @@ export const createOptionalCardMusicSelector = (
 };
 
 export const pickOptionalCardMusic = createOptionalCardMusicSelector(probeAudio);
+export const pickCompletionAudio = createCompletionAudioPicker(probeAudio);

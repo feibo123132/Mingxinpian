@@ -1,21 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Minus, Plus, Users, X } from 'lucide-react';
-import type { AppTheme } from '../themes';
+import { Minus, PackageOpen, Plus, Users, X } from 'lucide-react';
+import type { AppTheme, Postcard } from '../themes';
 import { drawMultiplayer, multiplayerSegments, rotationForResult } from '../lib/multiplayer';
 import { resolveAssetPath } from '../lib/assetPaths';
 import { createAngelMusicPicker } from '../lib/adventureAngelAudio';
 import { createDevilMusicPicker } from '../lib/adventureDevilAudio';
-import { pickOptionalCardMusic } from '../lib/availableCardMusic';
+import { pickCompletionAudio, pickOptionalCardMusic } from '../lib/availableCardMusic';
 import { selectCardSound } from '../lib/relaxedCardAudio';
+import { pausePendingCardAudio, resumePendingCardAudio } from '../lib/cardAudioControls';
 import { useAudioBus } from '../store/audioBus';
-import ResultModal from './ResultModal';
+import ResultModal, { type CardPlaybackState } from './ResultModal';
 import { relaxedTheme } from '../themes/relaxed';
 import { createAdventureBonusDrawer } from '../lib/adventureBonus';
+import { drawFixedMode, type SequenceFixedMode } from '../lib/fixedModes';
+import type { CardBox } from '../lib/cardBox';
+import type { RelaxedAudioPair } from '../lib/relaxedAudioPairs';
 
-interface Props { theme: AppTheme; initialCount: number; onExit: () => void }
+interface Props {
+  theme: AppTheme;
+  initialCount: number;
+  fixedMode: SequenceFixedMode | null;
+  cardBox: CardBox;
+  onCollectCard: (cardId: string) => void;
+  onConsumeCard: (cardId: string) => void;
+  onTakeRelaxedBonusPair: () => RelaxedAudioPair | null;
+  onRestartFixedMode: () => void;
+  onExit: () => void;
+}
 interface Player { id: number; rotation: number; result: number | null; duration: number; finished: boolean }
 const createPlayer = (id: number): Player => ({ id, rotation: 0, result: null, duration: 0, finished: true });
 const MAX_PLAYERS = 20;
+const COMPLETION_CARD_INDEX = 4;
 let boundary = 0;
 const slices = multiplayerSegments.map(segment => {
   const start = boundary;
@@ -26,6 +41,7 @@ const background = `conic-gradient(${slices.map(s => `${s.color} ${s.start}deg $
 
 const pickAngelMusic = createAngelMusicPicker();
 const pickDevilMusic = createDevilMusicPicker();
+type CardAudioSelection = { cardId: string; cardSound: string; fixedMusic?: string };
 
 export function PlayerCountDialog({ initialCount, onConfirm, onClose }: {
   initialCount: number; onConfirm: (count: number) => void; onClose: () => void;
@@ -46,7 +62,7 @@ export function PlayerCountDialog({ initialCount, onConfirm, onClose }: {
   </dialog>;
 }
 
-export default function MultiplayerMode({ theme, initialCount, onExit }: Props) {
+export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBox, onCollectCard, onConsumeCard, onTakeRelaxedBonusPair, onRestartFixedMode, onExit }: Props) {
   const compact = initialCount === 1;
   const [players, setPlayers] = useState<Player[]>(() => Array.from({ length: initialCount }, (_, i) => createPlayer(i + 1)));
   const nextId = useRef(initialCount + 1);
@@ -55,20 +71,27 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
   const locked = useRef(false);
   const [spinning, setSpinning] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [fixedDrawCount, setFixedDrawCount] = useState(0);
+  const [usedCardIndex, setUsedCardIndex] = useState<number | null>(null);
   // 彩蛋冷却跨整局保留：组件随 multiplayerSession 重建时自然重置。
   const bonusDrawer = useRef(createAdventureBonusDrawer());
   const [resultQueue, setResultQueue] = useState<number[]>([]);
+  const [showingCompletion, setShowingCompletion] = useState(false);
   const [bonusIndex, setBonusIndex] = useState<0 | 1 | null>(null);
   const [bonusShown, setBonusShown] = useState(false);
+  const [playbackState, setPlaybackState] = useState<CardPlaybackState>('ready');
   // 彩蛋卡优先展示：触发时先弹彩蛋，关闭后再依次展示抽中的卡片。
   const showingBonus = bonusIndex !== null && !bonusShown;
   const spinAudio = useRef<HTMLAudioElement | null>(null);
   const afterSpinAudio = useRef<(() => void) | null>(null);
   const resultAudio = useRef<HTMLAudioElement[] | null>(null);
+  const pendingCardAudio = useRef<Set<HTMLAudioElement> | null>(null);
+  const lastCardAudio = useRef<CardAudioSelection | null>(null);
   const exclusiveResult = useRef(false);
   const playSequence = useRef(0);
   const stopResultAudio = useCallback(() => {
     playSequence.current += 1;
+    pendingCardAudio.current = null;
     const group = resultAudio.current;
     if (!group) return;
     resultAudio.current = null;
@@ -83,29 +106,45 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
       useAudioBus.getState().endExclusive();
     }
   }, []);
-  const playResults = (results: number[], audioTheme = theme) => {
-    const playNext = async (position: number) => {
-      if (position >= results.length) return;
+  const playResult = (resultIndex: number, audioTheme = theme, replaySelection?: CardAudioSelection, isCompletion = false, selectedPair?: RelaxedAudioPair | null) => {
+    if (!replaySelection) {
+      lastCardAudio.current = null;
+      setPlaybackState('ready');
+    }
+    const playCurrent = async () => {
       const token = playSequence.current;
-      const card = audioTheme.cards[results[position]];
-      let fixedMusic: string | undefined;
-      if (card?.id === 'adventure-2') fixedMusic = pickAngelMusic();
-      else if (card?.id === 'adventure-1') fixedMusic = pickDevilMusic();
-      else if (card) fixedMusic = (await pickOptionalCardMusic(card.id)) ?? undefined;
+      const card = audioTheme.cards[resultIndex];
+      if (!card) return;
+      let fixedMusic = replaySelection?.fixedMusic ?? selectedPair?.music;
+      let cardSound = replaySelection?.cardSound ?? selectedPair?.sound;
+      if (!replaySelection) {
+        if (isCompletion) {
+          const completionAudio = await pickCompletionAudio();
+          cardSound = completionAudio.voice ?? selectCardSound(audioTheme.id, card);
+          fixedMusic = completionAudio.music ?? (await pickOptionalCardMusic(card.id)) ?? undefined;
+        } else if (!selectedPair) {
+          if (card.id === 'adventure-2') fixedMusic = pickAngelMusic();
+          else if (card.id === 'adventure-1') fixedMusic = pickDevilMusic();
+          else fixedMusic = (await pickOptionalCardMusic(card.id)) ?? undefined;
+        }
+      }
       if (playSequence.current !== token) return;
       const exclusive = Boolean(fixedMusic);
-      const cardSound = card ? selectCardSound(audioTheme.id, card) : '';
+      cardSound ??= selectCardSound(audioTheme.id, card);
       const sounds = cardSound ? [cardSound] : [];
       if (fixedMusic) sounds.push(fixedMusic);
-      if (!sounds.length) { playNext(position + 1); return; }
+      if (!sounds.length) return;
       try {
         const group = sounds.map(sound => new Audio(resolveAssetPath(sound)));
         if (fixedMusic && card?.id !== 'adventure-1') group[group.length - 1].volume = 0.6;
+        lastCardAudio.current = { cardId: card.id, cardSound, fixedMusic };
         resultAudio.current = group;
         useAudioBus.getState().startEffect();
+        setPlaybackState('playing');
         exclusiveResult.current = exclusive;
         if (exclusive) useAudioBus.getState().startExclusive();
         const pending = new Set(group);
+        pendingCardAudio.current = pending;
         group.forEach(audio => {
           const finished = () => {
             if (resultAudio.current !== group || !pending.delete(audio)) return;
@@ -113,7 +152,7 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
             audio.onerror = null;
             if (pending.size === 0) {
               stopResultAudio();
-              playNext(position + 1);
+              setPlaybackState('ready');
             }
           };
           audio.onended = finished;
@@ -123,10 +162,17 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
         });
       } catch {
         stopResultAudio();
-        playNext(position + 1);
+        setPlaybackState('ready');
       }
     };
-    playNext(0);
+    void playCurrent();
+  };
+  const activateCollectedCard = (card: Postcard, index: number) => {
+    if (!fixedMode || spinning || usedCardIndex !== null || resultQueue.length > 0 || (cardBox[card.id] ?? 0) < 1) return;
+    stopResultAudio();
+    onConsumeCard(card.id);
+    setUsedCardIndex(index);
+    playResult(index);
   };
   const stopSpinAudio = useCallback(() => {
     afterSpinAudio.current = null;
@@ -167,13 +213,20 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
   };
   const draw = () => {
     if (locked.current) return;
+    const fixedResult = fixedMode ? drawFixedMode(fixedMode, fixedDrawCount + 1) : null;
+    if (fixedMode && (fixedResult === null || players.length !== 1)) return;
     locked.current = true;
+    if (fixedMode) setFixedDrawCount(count => count + 1);
+    setUsedCardIndex(null);
     setResultQueue([]);
+    setShowingCompletion(false);
     setBonusIndex(null);
     setBonusShown(false);
     setSpinning(true);
     setEditing(false);
     stopResultAudio();
+    setPlaybackState('ready');
+    lastCardAudio.current = null;
     stopSpinAudio();
     try {
       const audio = new Audio(resolveAssetPath(theme.audio.spin));
@@ -194,7 +247,7 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
       stopSpinAudio();
     }
     timers.current.forEach(clearTimeout);
-    const results = drawMultiplayer(players.length);
+    const results = fixedMode ? [fixedResult as number] : drawMultiplayer(players.length);
     const next = players.map((player, i) => ({ ...player, result: results[i], rotation: rotationForResult(player.rotation, results[i]), duration: 4000 + i * 180, finished: false }));
     setPlayers(next);
     pendingStops.current.clear();
@@ -205,14 +258,16 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
       if (pendingStops.current.size === 0) {
         locked.current = false;
         setSpinning(false);
+        if (fixedMode && theme.cards[results[0]]) onCollectCard(theme.cards[results[0]].id);
         const bonus = theme.id === 'adventure' ? bonusDrawer.current() : null;
+        const bonusPair = bonus !== null ? onTakeRelaxedBonusPair() : null;
         setResultQueue(results);
         setBonusIndex(bonus);
         setBonusShown(false);
         finishSpinAudioLoop(() => {
           // 彩蛋卡先出场：先播彩蛋语音；未触发时按原顺序播抽中卡片的语音。
-          if (bonus !== null) playResults([bonus], relaxedTheme);
-          else playResults(results);
+          if (bonus !== null) playResult(bonus, relaxedTheme, undefined, false, bonusPair);
+          else playResult(results[0]);
         });
       }
       };
@@ -221,7 +276,80 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
       return setTimeout(finish, player.duration + 1000);
     });
   };
+  const restartCurrentCardAudio = () => {
+    const currentIndex = showingCompletion ? COMPLETION_CARD_INDEX : usedCardIndex ?? (showingBonus ? bonusIndex : resultQueue[0]);
+    const currentTheme = showingBonus && !showingCompletion && usedCardIndex === null ? relaxedTheme : theme;
+    const currentCard = currentIndex === undefined || currentIndex === null ? null : currentTheme.cards[currentIndex];
+    const last = lastCardAudio.current;
+    if (!currentCard || !last || last.cardId !== currentCard.id) return;
+    stopResultAudio();
+    setPlaybackState('playing');
+    playResult(currentIndex, currentTheme, last);
+  };
+  const closeResult = () => {
+    setPlaybackState('ready');
+    if (showingCompletion) {
+      stopResultAudio();
+      setShowingCompletion(false);
+    } else if (usedCardIndex !== null) {
+      stopResultAudio();
+      setUsedCardIndex(null);
+    } else if (showingBonus) {
+      afterSpinAudio.current = null;
+      stopResultAudio();
+      setBonusShown(true);
+      if (resultQueue.length) {
+        const playDrawn = () => playResult(resultQueue[0]);
+        // 极速关闭时仍需等待转盘音效的余音。
+        if (spinAudio.current) afterSpinAudio.current = playDrawn;
+        else playDrawn();
+      } else {
+        setBonusIndex(null);
+      }
+    } else {
+      stopResultAudio();
+      afterSpinAudio.current = null;
+      if (resultQueue.length > 1) {
+        const playRemaining = () => playResult(resultQueue[1]);
+        if (spinAudio.current) afterSpinAudio.current = playRemaining;
+        else playRemaining();
+      } else if (fixedMode?.id === 'fate-ten' && fixedDrawCount === fixedMode.totalDraws && resultQueue.length === 1) {
+        stopSpinAudio();
+        setShowingCompletion(true);
+        playResult(COMPLETION_CARD_INDEX, theme, undefined, true);
+      }
+      setResultQueue(queue => queue.slice(1));
+    }
+  };
+  const completionCard = fixedMode?.id === 'fate-ten' && theme.cards[COMPLETION_CARD_INDEX]
+    ? {
+      ...theme.cards[COMPLETION_CARD_INDEX],
+      image: '/images/adventure-completion.png',
+      video: '/videos/adventure-completion.mp4',
+      title: '🎉成功通关🎉',
+      content: '恭喜勇士们通关成功，顺利到达了胜利的彼岸',
+    }
+    : null;
+  const fixedRoundFinished = Boolean(fixedMode && fixedDrawCount >= fixedMode.totalDraws);
+  let spinAgainAction: () => void = draw;
+  let spinAgainLabel: string | undefined;
+  if (showingCompletion || (fixedRoundFinished && usedCardIndex !== null)) {
+    spinAgainAction = onRestartFixedMode;
+    spinAgainLabel = '再来一轮';
+  } else if (fixedMode && showingBonus) {
+    spinAgainAction = closeResult;
+    spinAgainLabel = '查看本次抽卡';
+  } else if (fixedRoundFinished) {
+    spinAgainAction = closeResult;
+    spinAgainLabel = '🎉恭喜通关🎉';
+  }
+  const boxTotal = theme.cards.reduce((total, card) => total + (cardBox[card.id] ?? 0), 0);
   return <section className={compact ? "flex w-full max-w-sm flex-1 flex-col items-center justify-center py-8" : "w-full max-w-6xl py-8"} aria-label="多个转盘">
+    {fixedMode && <div className="mb-10 w-full rounded-2xl border border-amber-200 bg-white/75 px-4 py-3 text-center shadow-sm" aria-live="polite">
+      <p className="text-sm font-bold text-amber-900">{fixedMode.name} · {fixedDrawCount}/{fixedMode.totalDraws} 次</p>
+      <p className="mt-1 text-xs text-amber-800/75">{fixedDrawCount >= fixedMode.totalDraws ? '本轮已完成，可以再开启一轮' : `下一次是第 ${fixedDrawCount + 1} 次`}</p>
+      <a href="#fate-card-box" className="mt-2 inline-block text-xs font-semibold text-amber-800 underline underline-offset-2">查看卡片盒 · {boxTotal} 张</a>
+    </div>}
     {!compact && <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-xl font-bold" style={{ color: theme.titleColor }}>准备好，开始闯关</h2><p className="mt-1 text-sm">{players.length} 个转盘 · 可分给多人，也可作为一个人的多轮挑战</p></div>
       <div className="flex flex-wrap gap-2">
@@ -259,36 +387,45 @@ export default function MultiplayerMode({ theme, initialCount, onExit }: Props) 
         <p aria-live="polite" className={compact ? "absolute -top-10 left-0 w-full text-center text-sm font-bold" : "mt-5 min-h-8 text-center text-lg font-bold"} style={{ color: theme.titleColor }}>{!player.finished ? '转呀转…' : player.result === null ? (compact ? '' : '准备就绪') : slices[player.result].label}</p>
       </article>)}
     </div>
-    <div className="mt-8 flex justify-center"><button onClick={draw} disabled={spinning} className={`rounded-full border-4 border-white font-black shadow-lg transition-transform hover:scale-105 disabled:opacity-60 ${compact ? "flex h-[88px] w-[88px] items-center justify-center text-lg" : "px-14 py-4 text-2xl"}`} style={{ background: theme.accentColor, color: theme.accentTextColor }}>{spinning ? '抽取中…' : '抽取'}</button></div>
+    <div className="mt-8 flex justify-center"><button onClick={fixedMode && fixedDrawCount >= fixedMode.totalDraws ? onRestartFixedMode : draw} disabled={spinning} className={`rounded-full border-4 border-white font-black shadow-lg transition-transform hover:scale-105 disabled:opacity-60 ${compact ? "flex h-[88px] w-[88px] items-center justify-center text-lg" : "px-14 py-4 text-2xl"}`} style={{ background: theme.accentColor, color: theme.accentTextColor }}>{spinning ? '抽取中…' : fixedMode && fixedDrawCount >= fixedMode.totalDraws ? '再来一轮' : '抽取'}</button></div>
+    {fixedMode && <section id="fate-card-box" aria-label="卡片收纳盒" className="mt-8 w-full rounded-[1.5rem] border border-amber-200 bg-white/75 p-4 shadow-sm sm:p-5">
+      <div className="mb-4 flex items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-base font-bold text-amber-950"><PackageOpen size={20} />卡片收纳盒</h2><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">{boxTotal} 张</span></div>
+      {boxTotal === 0 ? <p className="rounded-2xl border border-dashed border-amber-200 px-4 py-6 text-center text-sm text-amber-900/65">抽到的卡片会收进这里，之后可以点击使用。</p> :
+        <div className="grid gap-2">{theme.cards.map((card, index) => {
+          const count = cardBox[card.id] ?? 0;
+          if (count < 1) return null;
+          return <article key={card.id} className="flex items-center gap-3 rounded-2xl border border-amber-100 bg-white p-2.5 shadow-sm">
+            {card.image && <img src={resolveAssetPath(card.image)} alt="" className="h-14 w-14 shrink-0 rounded-xl bg-amber-50 object-contain" />}
+            <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-bold text-gray-800">{card.title}</h3><span className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{ background: slices[index]?.color ?? '#d9b74e' }}>× {count}</span></div><p className="mt-1 truncate text-xs text-gray-500">{card.content}</p></div>
+            <button type="button" onClick={() => activateCollectedCard(card, index)} disabled={spinning || usedCardIndex !== null} aria-label={`使用${card.title}，剩余${count}张`} className="shrink-0 rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-950 hover:bg-amber-200 disabled:opacity-50">使用 1 张</button>
+          </article>;
+        })}</div>}
+      <p className="mt-3 text-xs text-amber-900/60">使用时会打开卡片并播放语音与配乐；再来一轮会清空卡片盒。</p>
+    </section>}
     <ResultModal
-      card={showingBonus ? relaxedTheme.cards[bonusIndex] : resultQueue.length ? theme.cards[resultQueue[0]] : null}
-      theme={showingBonus ? relaxedTheme : theme}
-      isOpen={resultQueue.length > 0 || showingBonus}
-      onClose={() => {
-        if (showingBonus) {
-          afterSpinAudio.current = null;
-          stopResultAudio();
-          setBonusShown(true);
-          if (resultQueue.length) {
-            const playDrawn = () => playResults(resultQueue);
-            // 极速关闭时仍需等待转盘音效的余音。
-            if (spinAudio.current) afterSpinAudio.current = playDrawn;
-            else playDrawn();
-          } else {
-            setBonusIndex(null);
-          }
-        } else {
-          stopResultAudio();
-          afterSpinAudio.current = null;
-          if (resultQueue.length > 1) {
-            const playRemaining = () => playResults(resultQueue.slice(1));
-            if (spinAudio.current) afterSpinAudio.current = playRemaining;
-            else playRemaining();
-          }
-          setResultQueue(queue => queue.slice(1));
+      card={showingCompletion ? completionCard : usedCardIndex !== null ? theme.cards[usedCardIndex] : showingBonus ? relaxedTheme.cards[bonusIndex] : resultQueue.length ? theme.cards[resultQueue[0]] : null}
+      theme={showingBonus && !showingCompletion && usedCardIndex === null ? relaxedTheme : theme}
+      isOpen={showingCompletion || usedCardIndex !== null || resultQueue.length > 0 || showingBonus}
+      onClose={closeResult}
+      onRestart={restartCurrentCardAudio}
+      onTogglePlayback={() => {
+        const pending = pendingCardAudio.current;
+        if (playbackState === 'playing') {
+          if (!pausePendingCardAudio(pending)) return;
+          setPlaybackState('paused');
+          return;
         }
+        if (playbackState === 'paused') {
+          if (!pending?.size) return;
+          setPlaybackState('playing');
+          if (!resumePendingCardAudio(pending)) setPlaybackState('ready');
+          return;
+        }
+        restartCurrentCardAudio();
       }}
-      onSpinAgain={draw}
+      playbackState={playbackState}
+      onSpinAgain={spinAgainAction}
+      spinAgainLabel={spinAgainLabel}
     />
   </section>;
 }
