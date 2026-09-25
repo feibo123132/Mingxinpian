@@ -328,7 +328,6 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
     ? {
       ...theme.cards[COMPLETION_CARD_INDEX],
       image: '/images/adventure-completion.png',
-      video: '/videos/adventure-completion.mp4',
       title: '🎉成功通关🎉',
       content: '恭喜勇士们通关成功，顺利到达了胜利的彼岸',
     }

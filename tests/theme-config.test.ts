@@ -108,6 +108,26 @@ test('summer saved cards fall back from stale local sounds to the card-order sou
   assert.equal(loaded[8].sound, '/audio/summer-card-09.mp3');
 });
 
+test('adventure cards use images even when old saved settings contain video paths', () => {
+  const adventureTheme = getThemeById('adventure');
+  const saved = new Map<string, string>();
+  setMockLocalStorage({
+    getItem: key => saved.get(key) ?? null,
+    setItem: (key, value) => saved.set(key, value),
+  });
+  saved.set(getCardStorageKey('adventure'), JSON.stringify(adventureTheme.cards.map((card, index) => ({
+    ...card,
+    video: `/videos/adventure-card-${String(index + 1).padStart(2, '0')}.mp4`,
+  }))));
+
+  const loaded = loadCardsForTheme('adventure', adventureTheme.cards);
+  loaded.forEach((card, index) => {
+    assert.equal(card.video, undefined);
+    assert.equal(card.image, `/images/adventure-card-${String(index + 1).padStart(2, '0')}.png`);
+  });
+  assert.ok(adventureTheme.cards.every(card => !card.video));
+});
+
 test('keeps edited postcard data isolated per theme', () => {
   assert.equal(getCardStorageKey('christmas'), 'postcard-config:christmas');
   assert.equal(getCardStorageKey('summer'), 'postcard-config:summer');

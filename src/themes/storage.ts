@@ -85,6 +85,7 @@ const normalizeCards = (themeId: string, cards: unknown, fallback: Postcard[]) =
       title: partial.title || baseCard.title,
       content: partial.content || baseCard.content,
       image: normalizeSavedImage(partial.image, baseCard.image),
+      ...(themeId === 'adventure' ? { video: undefined } : {}),
       sound: normalizeSavedSound(themeId, partial.sound, index, baseCard.sound),
     };
   });
