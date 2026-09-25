@@ -13,6 +13,9 @@ export interface RelaxedAudioPair {
   music: string;
 }
 
+const relaxedSoundName = /^\/audio\/relaxed-card-(?:0[1-9]|[1-9]\d+)\.mp3$/;
+const relaxedMusicName = /^\/audio\/relaxed-card-music(?:[1-9]\d*)?\.mp3$/;
+
 export const normalizeRelaxedAudioPairs = (value: unknown): RelaxedAudioPair[] => {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
@@ -20,7 +23,7 @@ export const normalizeRelaxedAudioPairs = (value: unknown): RelaxedAudioPair[] =
     if (!item || typeof item !== 'object') return false;
     const pair = item as Partial<RelaxedAudioPair>;
     if (typeof pair.id !== 'string' || !pair.id || seen.has(pair.id)) return false;
-    if (!relaxedPairSounds.includes(pair.sound ?? '') || !relaxedPairMusic.includes(pair.music ?? '')) return false;
+    if (!relaxedSoundName.test(pair.sound ?? '') || !relaxedMusicName.test(pair.music ?? '')) return false;
     seen.add(pair.id);
     return true;
   }).slice(0, 10).map(({ id, sound, music }) => ({ id, sound, music }));

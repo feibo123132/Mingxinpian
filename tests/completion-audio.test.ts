@@ -27,5 +27,13 @@ test('completion audio skips files that have not been added yet', async () => {
   assert.deepEqual(await pick(), { voice: null, music: null });
   available.add(completionVoiceCandidates[0]);
   available.add(completionMusicCandidates[1]);
-  assert.deepEqual(await pick(), { voice: completionVoiceCandidates[0], music: completionMusicCandidates[1] });
+  assert.deepEqual(await pick(), { voice: completionVoiceCandidates[0], music: null });
+});
+
+test('completion music automatically includes an exact third track', async () => {
+  const third = '/audio/adventure-completion-music3.mp3';
+  const available = new Set([...completionMusicCandidates, third, '/audio/adventure-completion-music4❌️.mp3']);
+  const pick = createCompletionAudioPicker(async src => available.has(src), () => 0);
+  const played = await Promise.all(Array.from({ length: 3 }, () => pick()));
+  assert.deepEqual(played.map(item => item.music).sort(), [...completionMusicCandidates, third].sort());
 });

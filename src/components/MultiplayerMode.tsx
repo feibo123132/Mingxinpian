@@ -11,7 +11,7 @@ import { pausePendingCardAudio, resumePendingCardAudio } from '../lib/cardAudioC
 import { useAudioBus } from '../store/audioBus';
 import ResultModal, { type CardPlaybackState } from './ResultModal';
 import { relaxedTheme } from '../themes/relaxed';
-import { createAdventureBonusDrawer } from '../lib/adventureBonus';
+import { createAdventureBonusDrawer, createFateTenBonusSchedule } from '../lib/adventureBonus';
 import { drawFixedMode, type SequenceFixedMode } from '../lib/fixedModes';
 import type { CardBox } from '../lib/cardBox';
 import type { RelaxedAudioPair } from '../lib/relaxedAudioPairs';
@@ -75,6 +75,7 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
   const [usedCardIndex, setUsedCardIndex] = useState<number | null>(null);
   // 彩蛋冷却跨整局保留：组件随 multiplayerSession 重建时自然重置。
   const bonusDrawer = useRef(createAdventureBonusDrawer());
+  const [fixedBonusSchedule] = useState(() => fixedMode?.id === 'fate-ten' ? createFateTenBonusSchedule() : null);
   const [resultQueue, setResultQueue] = useState<number[]>([]);
   const [showingCompletion, setShowingCompletion] = useState(false);
   const [bonusIndex, setBonusIndex] = useState<0 | 1 | null>(null);
@@ -120,17 +121,17 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
       if (!replaySelection) {
         if (isCompletion) {
           const completionAudio = await pickCompletionAudio();
-          cardSound = completionAudio.voice ?? selectCardSound(audioTheme.id, card);
+          cardSound = completionAudio.voice ?? await selectCardSound(audioTheme.id, card);
           fixedMusic = completionAudio.music ?? (await pickOptionalCardMusic(card.id)) ?? undefined;
         } else if (!selectedPair) {
-          if (card.id === 'adventure-2') fixedMusic = pickAngelMusic();
-          else if (card.id === 'adventure-1') fixedMusic = pickDevilMusic();
+          if (card.id === 'adventure-2') fixedMusic = await pickAngelMusic();
+          else if (card.id === 'adventure-1') fixedMusic = await pickDevilMusic();
           else fixedMusic = (await pickOptionalCardMusic(card.id)) ?? undefined;
         }
       }
       if (playSequence.current !== token) return;
       const exclusive = Boolean(fixedMusic);
-      cardSound ??= selectCardSound(audioTheme.id, card);
+      cardSound ??= await selectCardSound(audioTheme.id, card);
       const sounds = cardSound ? [cardSound] : [];
       if (fixedMusic) sounds.push(fixedMusic);
       if (!sounds.length) return;
@@ -213,7 +214,8 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
   };
   const draw = () => {
     if (locked.current) return;
-    const fixedResult = fixedMode ? drawFixedMode(fixedMode, fixedDrawCount + 1) : null;
+    const drawNumber = fixedDrawCount + 1;
+    const fixedResult = fixedMode ? drawFixedMode(fixedMode, drawNumber) : null;
     if (fixedMode && (fixedResult === null || players.length !== 1)) return;
     locked.current = true;
     if (fixedMode) setFixedDrawCount(count => count + 1);
@@ -259,7 +261,7 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
         locked.current = false;
         setSpinning(false);
         if (fixedMode && theme.cards[results[0]]) onCollectCard(theme.cards[results[0]].id);
-        const bonus = theme.id === 'adventure' ? bonusDrawer.current() : null;
+        const bonus = fixedBonusSchedule ? fixedBonusSchedule[drawNumber] ?? null : theme.id === 'adventure' ? bonusDrawer.current() : null;
         const bonusPair = bonus !== null ? onTakeRelaxedBonusPair() : null;
         setResultQueue(results);
         setBonusIndex(bonus);

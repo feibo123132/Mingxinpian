@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Play, Plus, Trash2, X } from 'lucide-react';
 import { resolveAssetPath } from '../lib/assetPaths';
+import { discoverSequentialAudio, probeAudio } from '../lib/availableCardMusic';
 import { relaxedPairMusic, relaxedPairSounds, type RelaxedAudioPair } from '../lib/relaxedAudioPairs';
 import { useAudioBus } from '../store/audioBus';
 
@@ -21,6 +22,8 @@ export default function RelaxedPairEditor({ isOpen, pairs, onClose, onSave }: Pr
   const [draft, setDraft] = useState<RelaxedAudioPair[]>(pairs);
   const [sound, setSound] = useState(relaxedPairSounds[0]);
   const [music, setMusic] = useState(relaxedPairMusic[0]);
+  const [availableSounds, setAvailableSounds] = useState<string[]>(relaxedPairSounds);
+  const [availableMusic, setAvailableMusic] = useState<string[]>(relaxedPairMusic);
   const [previewing, setPreviewing] = useState(false);
 
   const stopPreview = useCallback(() => {
@@ -47,6 +50,30 @@ export default function RelaxedPairEditor({ isOpen, pairs, onClose, onSave }: Pr
     };
   }, [isOpen, pairs, stopPreview]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    void Promise.all([
+      discoverSequentialAudio(
+        [relaxedPairSounds[0]],
+        index => `/audio/relaxed-card-${String(index).padStart(2, '0')}.mp3`,
+        probeAudio,
+      ),
+      discoverSequentialAudio(
+        [relaxedPairMusic[0], '/audio/relaxed-card-music1.mp3'],
+        index => `/audio/relaxed-card-music${index}.mp3`,
+        probeAudio,
+      ),
+    ]).then(([sounds, musicTracks]) => {
+      if (!active) return;
+      setAvailableSounds(sounds);
+      setAvailableMusic(musicTracks);
+      if (sounds.length) setSound(current => sounds.includes(current) ? current : sounds[0]);
+      if (musicTracks.length) setMusic(current => musicTracks.includes(current) ? current : musicTracks[0]);
+    });
+    return () => { active = false; };
+  }, [isOpen]);
+
   const playPair = (selectedSound: string, selectedMusic: string) => {
     stopPreview();
     try {
@@ -72,7 +99,7 @@ export default function RelaxedPairEditor({ isOpen, pairs, onClose, onSave }: Pr
   };
 
   const addPair = () => {
-    if (draft.length >= 10) return;
+    if (draft.length >= 10 || !availableSounds.includes(sound) || !availableMusic.includes(music)) return;
     setDraft(current => [...current, { id: createPairId(), sound, music }]);
   };
 
@@ -99,17 +126,17 @@ export default function RelaxedPairEditor({ isOpen, pairs, onClose, onSave }: Pr
           <p className="mb-4 text-sm font-bold">创建一组搭配</p>
           <label className="mb-3 block text-xs font-semibold text-[#58614e]">卡片音效
             <select value={sound} onChange={event => setSound(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[#d6deca] bg-white px-3 py-2.5 text-sm">
-              {relaxedPairSounds.map(track => <option key={track} value={track}>{fileName(track)}</option>)}
+              {availableSounds.map(track => <option key={track} value={track}>{fileName(track)}</option>)}
             </select>
           </label>
           <label className="block text-xs font-semibold text-[#58614e]">背景配乐
             <select value={music} onChange={event => setMusic(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[#d6deca] bg-white px-3 py-2.5 text-sm">
-              {relaxedPairMusic.map(track => <option key={track} value={track}>{fileName(track)}</option>)}
+              {availableMusic.map(track => <option key={track} value={track}>{fileName(track)}</option>)}
             </select>
           </label>
           <div className="mt-4 flex gap-2">
             <button type="button" onClick={() => previewing ? stopPreview() : playPair(sound, music)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#b7c3a3] bg-white px-3 py-2.5 text-xs font-bold hover:bg-[#f9fbf4]"><Play size={14} />{previewing ? '停止试听' : '同时试听'}</button>
-            <button type="button" onClick={addPair} disabled={draft.length >= 10} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#d9b74e] px-3 py-2.5 text-xs font-bold text-[#493d1b] hover:bg-[#e8c65b] disabled:opacity-40"><Plus size={14} />加入顺序</button>
+            <button type="button" onClick={addPair} disabled={draft.length >= 10 || !availableSounds.includes(sound) || !availableMusic.includes(music)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#d9b74e] px-3 py-2.5 text-xs font-bold text-[#493d1b] hover:bg-[#e8c65b] disabled:opacity-40"><Plus size={14} />加入顺序</button>
           </div>
         </section>
         <section aria-label="搭配播放顺序">

@@ -5,7 +5,7 @@ import test from 'node:test';
 const wheelSource = readFileSync(new URL('../src/components/Wheel.tsx', import.meta.url), 'utf8');
 
 test('Wheel plays result audio from the selected card instead of an index-preloaded array', () => {
-  assert.match(wheelSource, /playSelectedCardSound\(selectedCard\)/);
+  assert.match(wheelSource, /playSelectedCardSound\(selectedCard, undefined, fixedAudioPair, sound\)/);
   assert.doesNotMatch(wheelSource, /selectionAudiosRef/);
 });
 
@@ -18,7 +18,7 @@ test('Wheel lets spin audio finish naturally when the result card sound starts',
   assert.match(wheelSource, /finishSpinAudioLoop/);
   assert.match(wheelSource, /spinAudio\.loop = false/);
   assert.match(wheelSource, /spinAudio\.onended = \(\) =>/);
-  assert.match(wheelSource, /finishSpinAudioLoop\(\);\s*playSelectedCardSound\(selectedCard\)/s);
+  assert.match(wheelSource, /finishSpinAudioLoop\(\);\s*playWithSelectedSound\(\)/s);
   assert.doesNotMatch(
     wheelSource,
     /audioRef\.current\.pause\(\);\s*audioRef\.current\.currentTime = 0;\s*audioRef\.current\.onended = null;\s*endAudioEffect\(\);/

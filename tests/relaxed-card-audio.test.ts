@@ -8,17 +8,28 @@ import { getCardStorageKey, loadCardsForTheme } from '../src/themes/storage.ts';
 
 const sounds = [1, 2, 3].map(number => `/audio/relaxed-card-0${number}.mp3`);
 
-test('both relaxed result cards share a shuffled three-sound cycle', () => {
-  const pick = createRelaxedCardSoundPicker(() => 0);
+test('both relaxed result cards share a shuffled three-sound cycle', async () => {
+  const available = new Set(sounds);
+  const pick = createRelaxedCardSoundPicker(() => 0, async src => available.has(src));
   const cards = [relaxedTheme.cards[0], relaxedTheme.cards[1]];
-  const played = Array.from({ length: 9 }, (_, index) =>
+  const played = await Promise.all(Array.from({ length: 9 }, (_, index) =>
     selectCardSound('relaxed', cards[index % cards.length], pick),
-  );
+  ));
 
   for (let offset = 0; offset < played.length; offset += 3) {
     assert.deepEqual(played.slice(offset, offset + 3).sort(), sounds);
   }
-  assert.equal(selectCardSound('summer', cards[0], pick), cards[0].sound);
+  assert.equal(await selectCardSound('summer', cards[0], pick), cards[0].sound);
+});
+
+test('a fourth relaxed sound joins both cards without selecting a similarly named file', async () => {
+  const fourth = '/audio/relaxed-card-04.mp3';
+  const available = new Set([...sounds, fourth, '/audio/relaxed-card-05❌️.mp3']);
+  const pick = createRelaxedCardSoundPicker(() => 0, async src => available.has(src));
+  const played = await Promise.all(Array.from({ length: 4 }, (_, index) =>
+    selectCardSound('relaxed', relaxedTheme.cards[index % 2], pick),
+  ));
+  assert.deepEqual(played.sort(), [...sounds, fourth].sort());
 });
 
 test('relaxed result text and all three audio files are available', () => {
