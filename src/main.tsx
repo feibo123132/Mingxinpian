@@ -37,6 +37,6 @@ if ('serviceWorker' in navigator) {
   } else {
     const base = import.meta.env.BASE_URL || '/';
     const prefix = base.endsWith('/') ? base : base + '/';
-    navigator.serviceWorker.register(`${prefix}sw.js`).catch(() => {});
+    navigator.serviceWorker.register(`${prefix}sw.js`, { updateViaCache: 'none' }).catch(() => {});
   }
 }

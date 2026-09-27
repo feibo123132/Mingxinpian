@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, ChevronRight, Menu, Palette, Settings, Sparkles, Users, X } from 'lucide-react';
+import { Check, ChevronRight, Download, Menu, Palette, Settings, Sparkles, Users, X } from 'lucide-react';
 import { fixedModes } from '../lib/fixedModes';
 import type { AppTheme } from '../themes';
 
@@ -15,10 +15,11 @@ interface HeaderMenuProps {
   onToggleRelaxedPairs: () => void;
   onOpenPairEditor: () => void;
   onOpenSettings: () => void;
+  onOpenAudioCache: () => void;
   onOpenMultiplayer: () => void;
 }
 
-const HeaderMenu: React.FC<HeaderMenuProps> = ({ themes, activeTheme, onSelectTheme, activeFixedModeId, onSelectFixedMode, onExitFixedMode, relaxedPairCount, relaxedPairsEnabled, onToggleRelaxedPairs, onOpenPairEditor, onOpenSettings, onOpenMultiplayer }) => {
+const HeaderMenu: React.FC<HeaderMenuProps> = ({ themes, activeTheme, onSelectTheme, activeFixedModeId, onSelectFixedMode, onExitFixedMode, relaxedPairCount, relaxedPairsEnabled, onToggleRelaxedPairs, onOpenPairEditor, onOpenSettings, onOpenAudioCache, onOpenMultiplayer }) => {
   const [open, setOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
   const [fixedModesOpen, setFixedModesOpen] = useState(false);
@@ -101,6 +102,15 @@ const HeaderMenu: React.FC<HeaderMenuProps> = ({ themes, activeTheme, onSelectTh
               <Settings className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800">编辑明信片</span>
+          </button>
+
+          <button
+            onClick={() => { onOpenAudioCache(); closeMenu(); }}
+            className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left transition-colors hover:bg-gray-50"
+            aria-haspopup="dialog"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700"><Download className="h-4 w-4" /></span>
+            <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800">保存音频到本机</span>
           </button>
 
           <button

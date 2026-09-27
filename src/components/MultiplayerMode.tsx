@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Minus, PackageOpen, Plus, Users, X } from 'lucide-react';
 import type { AppTheme, Postcard } from '../themes';
-import { drawMultiplayer, multiplayerSegments, rotationForResult } from '../lib/multiplayer';
+import { isAdventureTheme } from '../themes';
+import { drawMultiplayer, getAdventureSegments, rotationForResult } from '../lib/multiplayer';
 import { resolveAssetPath } from '../lib/assetPaths';
 import { createAngelMusicPicker } from '../lib/adventureAngelAudio';
 import { createDevilMusicPicker } from '../lib/adventureDevilAudio';
@@ -31,13 +32,6 @@ interface Player { id: number; rotation: number; result: number | null; duration
 const createPlayer = (id: number): Player => ({ id, rotation: 0, result: null, duration: 0, finished: true });
 const MAX_PLAYERS = 20;
 const COMPLETION_CARD_INDEX = 4;
-let boundary = 0;
-const slices = multiplayerSegments.map(segment => {
-  const start = boundary;
-  boundary += segment.weight * 3.6;
-  return { ...segment, start, end: boundary, middle: (start + boundary) / 2 };
-});
-const background = `conic-gradient(${slices.map(s => `${s.color} ${s.start}deg ${s.end}deg`).join(',')})`;
 
 const pickAngelMusic = createAngelMusicPicker();
 const pickDevilMusic = createDevilMusicPicker();
@@ -64,6 +58,16 @@ export function PlayerCountDialog({ initialCount, onConfirm, onClose }: {
 
 export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBox, onCollectCard, onConsumeCard, onTakeRelaxedBonusPair, onRestartFixedMode, onExit }: Props) {
   const compact = initialCount === 1;
+  const segments = useMemo(() => getAdventureSegments(theme), [theme]);
+  const slices = useMemo(() => {
+    let boundary = 0;
+    return segments.map(segment => {
+      const start = boundary;
+      boundary += segment.weight * 3.6;
+      return { ...segment, start, end: boundary, middle: (start + boundary) / 2 };
+    });
+  }, [segments]);
+  const background = `conic-gradient(${slices.map(slice => `${slice.color} ${slice.start}deg ${slice.end}deg`).join(',')})`;
   const [players, setPlayers] = useState<Player[]>(() => Array.from({ length: initialCount }, (_, i) => createPlayer(i + 1)));
   const nextId = useRef(initialCount + 1);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -133,6 +137,7 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
       if (playSequence.current !== token) return;
       const exclusive = Boolean(fixedMusic);
       cardSound ??= await selectCardSound(audioTheme.id, card);
+      if (playSequence.current !== token) return;
       const sounds = cardSound ? [cardSound] : [];
       if (fixedMusic) sounds.push(fixedMusic);
       if (!sounds.length) return;
@@ -250,8 +255,8 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
       stopSpinAudio();
     }
     timers.current.forEach(clearTimeout);
-    const results = fixedMode ? [fixedResult as number] : drawMultiplayer(players.length);
-    const next = players.map((player, i) => ({ ...player, result: results[i], rotation: rotationForResult(player.rotation, results[i]), duration: 4000 + i * 180, finished: false }));
+    const results = fixedMode ? [fixedResult as number] : drawMultiplayer(players.length, Math.random, segments);
+    const next = players.map((player, i) => ({ ...player, result: results[i], rotation: rotationForResult(player.rotation, results[i], Math.random, segments), duration: 4000 + i * 180, finished: false }));
     setPlayers(next);
     pendingStops.current.clear();
     timers.current = next.map(player => {
@@ -262,7 +267,7 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
         locked.current = false;
         setSpinning(false);
         if (fixedMode && theme.cards[results[0]]) onCollectCard(theme.cards[results[0]].id);
-        const bonus = fixedBonusSchedule ? fixedBonusSchedule[drawNumber] ?? null : theme.id === 'adventure' ? bonusDrawer.current() : null;
+        const bonus = fixedBonusSchedule ? fixedBonusSchedule[drawNumber] ?? null : isAdventureTheme(theme.id) ? bonusDrawer.current() : null;
         const bonusPair = bonus !== null ? onTakeRelaxedBonusPair() : null;
         setResultQueue(results);
         setBonusIndex(bonus);

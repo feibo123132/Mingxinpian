@@ -20,7 +20,7 @@ const BgmController: React.FC<BgmControllerProps> = ({ tracks, accentColor }) =>
   const audios = useMemo(() => {
     return tracks.map((track) => {
       const audio = new Audio(resolveAssetPath(track));
-      audio.preload = 'auto';
+      audio.preload = 'metadata';
       audio.loop = false;
       audio.volume = baseVol;
       return audio;

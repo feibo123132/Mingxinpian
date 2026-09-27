@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import BgmController from './components/BgmController';
 import HeaderMenu from './components/HeaderMenu';
+import AudioCachePanel from './components/AudioCachePanel';
 import ResultModal, { type CardPlaybackState } from './components/ResultModal';
 import SettingsModal from './components/SettingsModal';
 import RelaxedPairEditor from './components/RelaxedPairEditor';
@@ -12,7 +13,7 @@ import { collectCard, consumeCard, type CardBox } from './lib/cardBox';
 import { fixedModes } from './lib/fixedModes';
 import { getRelaxedAudioPairForDraw, loadRelaxedAudioPairs, saveRelaxedAudioPairs, type RelaxedAudioPair } from './lib/relaxedAudioPairs';
 import { ACTIVE_THEME_STORAGE_KEY, MAX_POSTCARDS, loadCardsForTheme, saveCardsForTheme } from './themes/storage';
-import { DEFAULT_THEME_ID, builtinThemes, getThemeById } from './themes';
+import { DEFAULT_THEME_ID, builtinThemes, getThemeById, isAdventureTheme } from './themes';
 import type { Postcard } from './themes';
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
   const [relaxedPairs, setRelaxedPairs] = useState<RelaxedAudioPair[]>(loadRelaxedAudioPairs);
   const [relaxedPairsEnabled, setRelaxedPairsEnabled] = useLocalStorage('relaxed-audio-pairs:enabled:v1', false);
   const [isPairEditorOpen, setIsPairEditorOpen] = useState(false);
+  const [isAudioCacheOpen, setIsAudioCacheOpen] = useState(false);
   const [relaxedDrawCount, setRelaxedDrawCount] = useState(0);
   const [wheelSession, setWheelSession] = useState(0);
 
@@ -107,7 +109,7 @@ function App() {
     if (!wheelRef.current?.replayCardAudio()) setPlaybackState('ready');
   };
 
-  const isAdventure = activeTheme.id === 'adventure';
+  const isAdventure = isAdventureTheme(activeTheme.id);
   const multipleWheels = isAdventure && (multiplayerCount ?? 1) > 1;
   const wheelCards = useMemo(() => cards.slice(0, MAX_POSTCARDS), [cards]);
   const currentRelaxedPair = relaxedPairsEnabled && activeTheme.id === 'relaxed'
@@ -172,6 +174,7 @@ function App() {
             }}
             onOpenPairEditor={() => setIsPairEditorOpen(true)}
             onOpenSettings={() => setIsSettingsModalOpen(true)}
+            onOpenAudioCache={() => setIsAudioCacheOpen(true)}
             onOpenMultiplayer={() => setShowPlayerCount(true)}
           />
 
@@ -207,7 +210,7 @@ function App() {
         </main>}
 
         {showPlayerCount && <PlayerCountDialog initialCount={multiplayerCount ?? 1} onClose={() => setShowPlayerCount(false)} onConfirm={count => {
-          setActiveThemeId('adventure');
+          setActiveThemeId(isAdventure ? activeTheme.id : 'adventure');
           setFixedModeId(null);
           setCardBox({});
           setMultiplayerCount(count);
@@ -255,6 +258,8 @@ function App() {
           setRelaxedDrawCount(0);
           setRelaxedPairsEnabled(saved.length > 0);
         }} />
+
+        <AudioCachePanel isOpen={isAudioCacheOpen} onClose={() => setIsAudioCacheOpen(false)} />
 
         <footer className="w-full pb-8 text-center text-sm" style={{ color: activeTheme.mutedColor }}>
           <p>{activeTheme.footer}</p>

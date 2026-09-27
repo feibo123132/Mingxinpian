@@ -2,6 +2,7 @@ import React from 'react';
 import { Play, X } from 'lucide-react';
 import { resolveAssetPath } from '../lib/assetPaths';
 import type { AppTheme, Postcard } from '../themes';
+import { isAdventureTheme } from '../themes';
 
 export type CardPlaybackState = 'ready' | 'playing' | 'paused';
 
@@ -19,6 +20,8 @@ interface ResultModalProps {
 
 const ResultModal: React.FC<ResultModalProps> = ({ card, theme, isOpen, onClose, onRestart, onTogglePlayback, playbackState, onSpinAgain, spinAgainLabel = '再抽一次' }) => {
   const [failedVideo, setFailedVideo] = React.useState<string | null>(null);
+  const [failedImage, setFailedImage] = React.useState<string | null>(null);
+  React.useEffect(() => { setFailedImage(null); }, [card?.image, isOpen]);
   if (!isOpen || !card) return null;
 
   return (
@@ -52,17 +55,18 @@ const ResultModal: React.FC<ResultModalProps> = ({ card, theme, isOpen, onClose,
               muted
               playsInline
               onError={() => setFailedVideo(card.video ?? null)}
-              className={theme.id === 'adventure'
+              className={isAdventureTheme(theme.id)
                 ? 'aspect-square w-full rounded-xl object-contain shadow-md'
                 : 'aspect-[4/3] w-full rounded-xl object-cover shadow-md'}
             />
           ) : card.image ? (
             <img
-              src={resolveAssetPath(card.image)}
+              src={resolveAssetPath(failedImage === card.image && card.fallbackImage ? card.fallbackImage : card.image)}
+              onError={() => { if (card.fallbackImage) setFailedImage(card.image); }}
               alt={card.title}
               decoding="async"
               loading="eager"
-              className={theme.id === 'adventure'
+              className={isAdventureTheme(theme.id)
                 ? 'aspect-square w-full rounded-xl object-contain shadow-md'
                 : theme.id === 'relaxed'
                   ? 'h-auto w-full rounded-xl shadow-md'

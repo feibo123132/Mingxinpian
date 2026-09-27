@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="background" x2="1" y2="1"><stop stop-color="#174c50"/><stop offset="1" stop-color="#4ECDC4"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#fff5ca" stop-opacity=".3"/><stop offset="1" stop-color="#fff5ca" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect x="12" y="12" width="1000" height="1000" rx="52" fill="url(#background)"/>
+  <rect x="34" y="34" width="956" height="956" rx="38" fill="none" stroke="#edcb7b" stroke-width="10"/>
+  <rect x="53" y="53" width="918" height="918" rx="25" fill="none" stroke="#edcb7b" stroke-width="2"/>
+  <circle cx="512" cy="410" r="330" fill="url(#glow)"/>
+  <g fill="none" stroke="#fff4cf" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="435" y="232" width="154" height="295" rx="77"/>
+    <path d="M368 426v35a144 144 0 0 0 288 0v-35M512 606v105M427 711h170"/>
+    <path d="M733 258v150m0-150 99-24v150M264 360v150m0-150 74-18v120" stroke-width="12"/>
+  </g>
+  <g fill="#fff4cf"><ellipse cx="710" cy="412" rx="30" ry="22"/><ellipse cx="809" cy="388" rx="30" ry="22"/><ellipse cx="244" cy="514" rx="25" ry="18"/><ellipse cx="318" cy="466" rx="25" ry="18"/></g>
+  <g fill="#edcb7b"><path d="m205 203 8 22 23 8-23 8-8 22-8-22-23-8 23-8z"/><path d="m822 558 8 22 23 8-23 8-8 22-8-22-23-8 23-8z"/></g>
+  <rect x="137" y="779" width="750" height="149" rx="32" fill="#fff4cf"/>
+  <text x="512" y="881" text-anchor="middle" fill="#23595a" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-weight="800" font-size="91">连唱卡</text>
+</svg>

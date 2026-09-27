@@ -1,4 +1,5 @@
 import { resolveAssetPath } from './assetPaths.ts';
+import { cachedAudioAvailability } from './audioCache.ts';
 
 type MusicSlot = string | readonly string[];
 
@@ -6,6 +7,7 @@ const optionalCardMusicPrefixes: Record<string, string> = {
   'adventure-3': 'adventure-card-03',
   'adventure-4': 'adventure-card-04',
   'adventure-5': 'adventure-card-05',
+  'adventure-6': 'adventure-card-06',
   'relaxed-1': 'relaxed-card',
   'relaxed-2': 'relaxed-card',
   'relaxed-3': 'relaxed-card-03',
@@ -122,7 +124,9 @@ export const createCompletionAudioPicker = (
 };
 
 const knownAudio = new Map<string, Promise<boolean>>();
-export const probeAudio = (src: string): Promise<boolean> => {
+export const probeAudio = async (src: string): Promise<boolean> => {
+  const catalogued = await cachedAudioAvailability(src);
+  if (catalogued !== null) return catalogued;
   const cached = knownAudio.get(src);
   if (cached) return cached;
 

@@ -23,6 +23,10 @@ export const selectCardSound = (
   themeId: string,
   card: Postcard,
   pick = pickRelaxedCardSound,
-): Promise<string> => themeId === 'relaxed' && (card.id === 'relaxed-1' || card.id === 'relaxed-2')
-  ? pick().then(sound => sound ?? card.sound)
-  : Promise.resolve(card.sound);
+  isAvailable = probeAudio,
+): Promise<string> => {
+  if (card.id === 'adventure-6') return isAvailable(card.sound).then(available => available ? card.sound : '');
+  return themeId === 'relaxed' && (card.id === 'relaxed-1' || card.id === 'relaxed-2')
+    ? pick().then(sound => sound ?? card.sound)
+    : Promise.resolve(card.sound);
+};

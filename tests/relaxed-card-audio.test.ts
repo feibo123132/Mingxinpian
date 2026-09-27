@@ -4,9 +4,17 @@ import test from 'node:test';
 
 import { createRelaxedCardSoundPicker, selectCardSound } from '../src/lib/relaxedCardAudio.ts';
 import { relaxedTheme } from '../src/themes/relaxed.ts';
+import { adventure2Theme } from '../src/themes/adventure2.ts';
 import { getCardStorageKey, loadCardsForTheme } from '../src/themes/storage.ts';
 
 const sounds = [1, 2, 3].map(number => `/audio/relaxed-card-0${number}.mp3`);
+
+test('continuous singing voice starts working when its prepared file becomes available', async () => {
+  const card = adventure2Theme.cards[3];
+  const pick = async () => { throw new Error('continuous singing must not use a relaxed voice'); };
+  assert.equal(await selectCardSound(adventure2Theme.id, card, pick, async () => false), '');
+  assert.equal(await selectCardSound(adventure2Theme.id, card, pick, async src => src === card.sound), '/audio/adventure-card-06.mp3');
+});
 
 test('both relaxed result cards share a shuffled three-sound cycle', async () => {
   const available = new Set(sounds);

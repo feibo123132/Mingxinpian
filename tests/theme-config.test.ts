@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
 
-import { DEFAULT_THEME_ID, builtinThemes, getThemeById } from '../src/themes/index.ts';
+import { DEFAULT_THEME_ID, builtinThemes, getThemeById, isAdventureTheme } from '../src/themes/index.ts';
+import { getAdventureSegments } from '../src/lib/multiplayer.ts';
 import { MAX_POSTCARDS, getCardStorageKey, loadCardsForTheme, saveCardsForTheme } from '../src/themes/storage.ts';
 
 const setMockLocalStorage = (localStorage: { getItem: (key: string) => string | null; setItem: (key: string, value: string) => void }) => {
@@ -17,6 +18,27 @@ test('registers christmas as the default theme and summer as an alternate theme'
 
 test('falls back to the default theme when a saved theme id is unknown', () => {
   assert.equal(getThemeById('missing-theme').id, DEFAULT_THEME_ID);
+});
+
+test('adventure II keeps the original presentation with its own four-card set', () => {
+  const original = getThemeById('adventure');
+  const second = getThemeById('adventure-2');
+  assert.equal(second.name, '勇者大闯关②');
+  assert.ok(isAdventureTheme(second.id));
+  assert.equal(second.title, '勇者大闯关②');
+  assert.deepEqual(second.cards.map(card => card.title), ['魔鬼卡', '天使卡', '提示卡', '连唱卡']);
+  assert.deepEqual(second.cards.slice(0, 3), original.cards.slice(0, 3));
+  assert.deepEqual(second.wheel.colors, original.wheel.colors.slice(0, 4));
+  assert.deepEqual(getAdventureSegments(second).map(segment => segment.weight), [25, 25, 25, 25]);
+  assert.deepEqual(getAdventureSegments(original).map(segment => segment.weight), [20, 20, 20, 20, 20]);
+  assert.equal(second.background, original.background);
+  assert.equal(second.titleColor, original.titleColor);
+  assert.equal(second.surface, original.surface);
+  assert.deepEqual(second.audio, original.audio);
+  assert.notEqual(getCardStorageKey(second.id), getCardStorageKey(original.id));
+  assert.equal(second.cards[3].image, '/images/adventure-card-06.png');
+  assert.equal(second.cards[3].sound, '/audio/adventure-card-06.mp3');
+  assert.ok(existsSync(new URL(`../public${second.cards[3].fallbackImage}`, import.meta.url)));
 });
 
 test('summer theme uses its dedicated three-track background music set', () => {
