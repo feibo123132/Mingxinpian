@@ -15,6 +15,15 @@ export const createFateTenBonusSchedule = (random = Math.random): ReadonlyArray<
   return schedule;
 };
 
+export const createFixedModeBonusSchedule = (modeId: string | undefined, random = Math.random): ReadonlyArray<0 | 1 | null> | null => {
+  if (modeId === 'fate-ten') return createFateTenBonusSchedule(random);
+  if (modeId !== 'fate-four') return null;
+  const schedule: (0 | 1 | null)[] = Array(5).fill(null);
+  const drawNumber = 1 + Math.floor(random() * 4);
+  schedule[drawNumber] = random() < 0.5 ? 0 : 1;
+  return schedule;
+};
+
 // 彩蛋冷却：一旦触发彩蛋，接下来的 3 次抽取必定不出，之后恢复原有概率。
 export const createAdventureBonusDrawer = (): ((random?: number) => 0 | 1 | null) => {
   let cooldown = 0;

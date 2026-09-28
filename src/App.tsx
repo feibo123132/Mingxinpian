@@ -126,7 +126,7 @@ function App() {
     if (!mode || mode.kind !== 'sequence') return;
     setActiveThemeId(mode.themeId);
     setFixedModeId(modeId);
-    setMultiplayerCount(mode.themeId === 'adventure' ? 1 : null);
+    setMultiplayerCount(isAdventureTheme(mode.themeId) ? 1 : null);
     setCardBox({});
     setMultiplayerSession(value => value + 1);
     setWheelSession(value => value + 1);

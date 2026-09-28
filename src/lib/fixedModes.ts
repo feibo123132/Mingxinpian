@@ -5,7 +5,7 @@ interface FixedModeBase {
   name: string;
   description: string;
   icon: string;
-  themeId: 'adventure' | 'relaxed';
+  themeId: 'adventure' | 'adventure-2' | 'relaxed';
 }
 
 export interface SequenceFixedMode extends FixedModeBase {
@@ -27,11 +27,22 @@ export const fixedModes: readonly FixedMode[] = [
     kind: 'sequence',
     themeId: 'adventure',
     name: '命运十抽',
-    description: '第 4、8 次魔鬼；第 1–3、5–7 次各 1 张复活；其余三卡各至少 1 次',
+    description: '第 4、8 次魔鬼；第 1–3、5–7 次各 1 张复活；天使、提示、连唱各至少 1 次',
     icon: '✦',
     totalDraws: 10,
     forcedResults: { 4: 0, 8: 0 },
     excludedResults: [0, 4],
+  },
+  {
+    id: 'fate-four',
+    kind: 'sequence',
+    themeId: 'adventure-2',
+    name: '命运四抽',
+    description: '勇者大闯关②：四张卡各抽 1 次，随机额外触发 1 次轻松卡',
+    icon: '✦',
+    totalDraws: 4,
+    forcedResults: {},
+    excludedResults: [4],
   },
   {
     id: 'relaxed-pairs',
@@ -55,7 +66,7 @@ export const createFateTenDrawSequence = (random = Math.random): readonly number
   results[7] = 0;
   revivalDraws.forEach(drawNumber => { results[drawNumber - 1] = 4; });
 
-  // Six open positions: guarantee angel, hint, and simple once, then vary the other three.
+  // Six open positions: guarantee angel, hint, and singing once, then vary the other three.
   const remaining = [1, 2, 3, ...Array.from({ length: 3 }, () => 1 + Math.floor(random() * 3))];
   for (let index = remaining.length - 1; index > 0; index--) {
     const swap = Math.floor(random() * (index + 1));
@@ -63,6 +74,17 @@ export const createFateTenDrawSequence = (random = Math.random): readonly number
   }
   let next = 0;
   return results.map(result => result === -1 ? remaining[next++] : result);
+};
+
+export const createFixedModeDrawSequence = (mode: SequenceFixedMode, random = Math.random): readonly number[] | null => {
+  if (mode.id === 'fate-ten') return createFateTenDrawSequence(random);
+  if (mode.id !== 'fate-four') return null;
+  const results = [0, 1, 2, 3];
+  for (let index = results.length - 1; index > 0; index--) {
+    const swap = Math.floor(random() * (index + 1));
+    [results[index], results[swap]] = [results[swap], results[index]];
+  }
+  return results;
 };
 
 export const drawFixedMode = (mode: SequenceFixedMode, drawNumber: number, random = Math.random): number | null => {

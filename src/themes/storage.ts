@@ -56,7 +56,14 @@ const normalizeCards = (themeId: string, cards: unknown, fallback: Postcard[]) =
     if (!savedCard || typeof savedCard !== 'object') return baseCard;
 
     const partial = { ...savedCard } as Partial<Postcard>;
+    if (themeId === 'adventure' && partial.id === 'adventure-4') {
+      const singingCard = fallback.find(card => card.id === 'adventure-6');
+      if (singingCard) return { ...singingCard };
+    }
     // Refresh previous built-in defaults without replacing custom card edits.
+    if ((themeId === 'adventure' || themeId === 'adventure-2') && partial.id === 'adventure-6' && partial.content === '连续演唱，挑战继续！') {
+      partial.content = fallback.find(card => card.id === partial.id)?.content ?? partial.content;
+    }
     if (themeId === 'relaxed') {
       if (partial.id === 'relaxed-2' && (partial.title === '抽象模式' || partial.title === '严肃抽象')) {
         partial.title = '为人严肃';

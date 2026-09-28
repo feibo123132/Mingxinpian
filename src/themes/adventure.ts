@@ -16,11 +16,15 @@ export const adventureTheme: AppTheme = {
   background: 'linear-gradient(135deg, #fffaf0 0%, #fff2d2 100%)',
   preview: { label: '勇者大闯关', colors: multiplayerSegments.map(segment => segment.color) },
   wheel: { ...relaxedTheme.wheel, colors: multiplayerSegments.map(segment => segment.color) },
-  cards: multiplayerSegments.map((segment, index) => ({
-    id: `adventure-${index + 1}`,
-    title: segment.label,
-    content: ['传说来自天堂的魔鬼！', '我来助你！', '给个提示呗', '简简单单啦', '复活吧！我的勇士！'][index],
-    image: `/images/adventure-card-${String(index + 1).padStart(2, '0')}.png`,
-    sound: `/audio/adventure-card-${String(index + 1).padStart(2, '0')}.mp3`,
-  })),
+  cards: multiplayerSegments.map((segment, index) => {
+    const cardNumber = index === 3 ? 6 : index + 1;
+    return {
+      id: `adventure-${cardNumber}`,
+      title: segment.label,
+      content: ['传说来自天堂的魔鬼！', '我来助你！', '给个提示呗', '进入歌曲串烧模式！', '复活吧！我的勇士！'][index],
+      image: `/images/adventure-card-${String(cardNumber).padStart(2, '0')}.png`,
+      ...(cardNumber === 6 ? { fallbackImage: '/images/adventure-card-06.svg' } : {}),
+      sound: `/audio/adventure-card-${String(cardNumber).padStart(2, '0')}.mp3`,
+    };
+  }),
 };

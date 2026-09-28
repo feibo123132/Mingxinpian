@@ -5,7 +5,6 @@ type MusicSlot = string | readonly string[];
 
 const optionalCardMusicPrefixes: Record<string, string> = {
   'adventure-3': 'adventure-card-03',
-  'adventure-4': 'adventure-card-04',
   'adventure-5': 'adventure-card-05',
   'adventure-6': 'adventure-card-06',
   'relaxed-1': 'relaxed-card',

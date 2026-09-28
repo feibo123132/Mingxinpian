@@ -12,8 +12,9 @@ import { pausePendingCardAudio, resumePendingCardAudio } from '../lib/cardAudioC
 import { useAudioBus } from '../store/audioBus';
 import ResultModal, { type CardPlaybackState } from './ResultModal';
 import { relaxedTheme } from '../themes/relaxed';
-import { createAdventureBonusDrawer, createFateTenBonusSchedule } from '../lib/adventureBonus';
-import { createFateTenDrawSequence, drawFixedMode, type SequenceFixedMode } from '../lib/fixedModes';
+import { adventureTheme } from '../themes/adventure';
+import { createAdventureBonusDrawer, createFixedModeBonusSchedule } from '../lib/adventureBonus';
+import { createFixedModeDrawSequence, drawFixedMode, type SequenceFixedMode } from '../lib/fixedModes';
 import type { CardBox } from '../lib/cardBox';
 import type { RelaxedAudioPair } from '../lib/relaxedAudioPairs';
 
@@ -79,8 +80,8 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
   const [usedCardIndex, setUsedCardIndex] = useState<number | null>(null);
   // 彩蛋冷却跨整局保留：组件随 multiplayerSession 重建时自然重置。
   const bonusDrawer = useRef(createAdventureBonusDrawer());
-  const [fixedBonusSchedule] = useState(() => fixedMode?.id === 'fate-ten' ? createFateTenBonusSchedule() : null);
-  const [fixedDrawSequence] = useState(() => fixedMode?.id === 'fate-ten' ? createFateTenDrawSequence() : null);
+  const [fixedBonusSchedule] = useState(() => createFixedModeBonusSchedule(fixedMode?.id));
+  const [fixedDrawSequence] = useState(() => fixedMode ? createFixedModeDrawSequence(fixedMode) : null);
   const [resultQueue, setResultQueue] = useState<number[]>([]);
   const [showingCompletion, setShowingCompletion] = useState(false);
   const [bonusIndex, setBonusIndex] = useState<0 | 1 | null>(null);
@@ -286,7 +287,7 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
   };
   const restartCurrentCardAudio = () => {
     const currentIndex = showingCompletion ? COMPLETION_CARD_INDEX : usedCardIndex ?? (showingBonus ? bonusIndex : resultQueue[0]);
-    const currentTheme = showingBonus && !showingCompletion && usedCardIndex === null ? relaxedTheme : theme;
+    const currentTheme = showingCompletion ? adventureTheme : showingBonus && usedCardIndex === null ? relaxedTheme : theme;
     const currentCard = currentIndex === undefined || currentIndex === null ? null : currentTheme.cards[currentIndex];
     const last = lastCardAudio.current;
     if (!currentCard || !last || last.cardId !== currentCard.id) return;
@@ -321,17 +322,17 @@ export default function MultiplayerMode({ theme, initialCount, fixedMode, cardBo
         const playRemaining = () => playResult(resultQueue[1]);
         if (spinAudio.current) afterSpinAudio.current = playRemaining;
         else playRemaining();
-      } else if (fixedMode?.id === 'fate-ten' && fixedDrawCount === fixedMode.totalDraws && resultQueue.length === 1) {
+      } else if (fixedMode && fixedDrawCount === fixedMode.totalDraws && resultQueue.length === 1) {
         stopSpinAudio();
         setShowingCompletion(true);
-        playResult(COMPLETION_CARD_INDEX, theme, undefined, true);
+        playResult(COMPLETION_CARD_INDEX, adventureTheme, undefined, true);
       }
       setResultQueue(queue => queue.slice(1));
     }
   };
-  const completionCard = fixedMode?.id === 'fate-ten' && theme.cards[COMPLETION_CARD_INDEX]
+  const completionCard = fixedMode
     ? {
-      ...theme.cards[COMPLETION_CARD_INDEX],
+      ...adventureTheme.cards[COMPLETION_CARD_INDEX],
       image: '/images/adventure-completion.png',
       title: '🎉成功通关🎉',
       content: '恭喜勇士们通关成功，顺利到达了胜利的彼岸',

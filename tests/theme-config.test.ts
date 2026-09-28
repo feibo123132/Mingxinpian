@@ -41,6 +41,45 @@ test('adventure II keeps the original presentation with its own four-card set', 
   assert.ok(existsSync(new URL(`../public${second.cards[3].fallbackImage}`, import.meta.url)));
 });
 
+test('the five-card adventure theme fully replaces simple with the shared singing card', () => {
+  const theme = getThemeById('adventure');
+  const second = getThemeById('adventure-2');
+  assert.deepEqual(theme.cards.map(card => card.title), ['魔鬼卡', '天使卡', '提示卡', '连唱卡', '复活卡']);
+  assert.deepEqual(getAdventureSegments(theme).map(segment => segment.label), theme.cards.map(card => card.title));
+  assert.deepEqual(theme.cards[3], second.cards[3]);
+  assert.equal(theme.cards[3].id, 'adventure-6');
+  assert.equal(theme.cards[3].content, '进入歌曲串烧模式！');
+  assert.ok(!theme.cards.some(card => card.id === 'adventure-4'));
+  for (const path of [theme.cards[3].image, theme.cards[3].sound, '/audio/adventure-card-06-music.mp3', '/audio/adventure-card-06-music2.mp3']) {
+    assert.ok(existsSync(new URL(`../public${path}`, import.meta.url)), path);
+  }
+});
+
+test('saved simple card settings are replaced completely and persisted without changing other cards', () => {
+  const theme = getThemeById('adventure');
+  const saved = new Map<string, string>();
+  setMockLocalStorage({
+    getItem: key => saved.get(key) ?? null,
+    setItem: (key, value) => saved.set(key, value),
+  });
+  const cards = theme.cards.map(card => ({ ...card, content: '其他卡片的自定义内容' }));
+  cards[3] = {
+    id: 'adventure-4', title: '简单卡', content: '简简单单啦',
+    image: '/images/adventure-card-04.png', sound: '/audio/adventure-card-04.mp3',
+    video: '/videos/adventure-card-04.mp4',
+  };
+  const key = getCardStorageKey(theme.id);
+  saved.set(key, JSON.stringify(cards));
+  const loaded = loadCardsForTheme(theme.id, theme.cards);
+  assert.deepEqual(loaded[3], theme.cards[3]);
+  assert.equal(loaded[0].content, cards[0].content);
+  assert.equal(loaded[4].content, cards[4].content);
+  assert.equal(JSON.parse(saved.get(key)!)[3].id, 'adventure-6');
+  const reloaded = loadCardsForTheme(theme.id, theme.cards);
+  assert.equal(reloaded[3].image, theme.cards[3].image);
+  assert.equal(reloaded[3].sound, theme.cards[3].sound);
+});
+
 test('summer theme uses its dedicated three-track background music set', () => {
   const summerTheme = getThemeById('summer');
 
@@ -145,7 +184,7 @@ test('adventure cards use images even when old saved settings contain video path
   const loaded = loadCardsForTheme('adventure', adventureTheme.cards);
   loaded.forEach((card, index) => {
     assert.equal(card.video, undefined);
-    assert.equal(card.image, `/images/adventure-card-${String(index + 1).padStart(2, '0')}.png`);
+    assert.equal(card.image, adventureTheme.cards[index].image);
   });
   assert.ok(adventureTheme.cards.every(card => !card.video));
 });

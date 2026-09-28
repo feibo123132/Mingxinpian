@@ -4,7 +4,7 @@ export const multiplayerSegments = [
   { label: '魔鬼卡', weight: 20, color: '#FF6B6B' },
   { label: '天使卡', weight: 20, color: '#FFD748' },
   { label: '提示卡', weight: 20, color: '#7C90FF' },
-  { label: '简单卡', weight: 20, color: '#4ECDC4' },
+  { label: '连唱卡', weight: 20, color: '#4ECDC4' },
   { label: '复活卡', weight: 20, color: '#FF9F1C' },
 ];
 

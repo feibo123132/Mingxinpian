@@ -75,7 +75,6 @@ test('the installed hint card uses the exact music3 file beside a malformed look
 test('all card groups accept their exact music filenames and extend beyond three tracks', async () => {
   const cardPrefixes: Record<string, string> = {
     'adventure-3': 'adventure-card-03',
-    'adventure-4': 'adventure-card-04',
     'adventure-5': 'adventure-card-05',
     'adventure-6': 'adventure-card-06',
     'relaxed-1': 'relaxed-card',
@@ -98,6 +97,7 @@ test('all card groups accept their exact music filenames and extend beyond three
   }
   const selectUnknown = createOptionalCardMusicSelector(async () => true);
   assert.equal(await selectUnknown('toString'), null);
+  assert.equal(await selectUnknown('adventure-4'), null);
 });
 
 test('both relaxed cards share one music pool and one cycle', async () => {

@@ -1,6 +1,33 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createAdventureBonusDrawer, createFateTenBonusSchedule, drawAdventureBonus } from '../src/lib/adventureBonus.ts';
+import { createAdventureBonusDrawer, createFixedModeBonusSchedule, createFateTenBonusSchedule, drawAdventureBonus } from '../src/lib/adventureBonus.ts';
+
+test('fate four has exactly one extra relaxed bonus at a random draw each round', () => {
+  const positions = new Set<number>();
+  const cards = new Set<number>();
+  for (let seed = 0; seed < 1000; seed++) {
+    let state = Math.imul(seed, 2654435761) >>> 0;
+    const random = () => ((state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 0x100000000);
+    const schedule = createFixedModeBonusSchedule('fate-four', random);
+    assert.ok(schedule);
+    assert.equal(schedule.length, 5);
+    assert.equal(schedule[0], null);
+    const draws = schedule.flatMap((bonus, draw) => bonus === null ? [] : [draw]);
+    assert.equal(draws.length, 1);
+    assert.ok(draws[0] >= 1 && draws[0] <= 4);
+    const bonus = schedule[draws[0]];
+    assert.ok(bonus === 0 || bonus === 1);
+    positions.add(draws[0]);
+    cards.add(bonus);
+  }
+  assert.deepEqual([...positions].sort(), [1, 2, 3, 4]);
+  assert.equal(cards.size, 2);
+});
+
+test('fixed bonus scheduling keeps fate ten unchanged and ordinary mode random', () => {
+  assert.deepEqual(createFixedModeBonusSchedule('fate-ten', () => 0.5), createFateTenBonusSchedule(() => 0.5));
+  assert.equal(createFixedModeBonusSchedule(undefined), null);
+});
 
 test('fate ten has exactly one relaxed bonus in each half, respecting the cooldown', () => {
   for (let seed = 0; seed < 1000; seed++) {
