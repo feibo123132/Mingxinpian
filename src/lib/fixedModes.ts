@@ -23,14 +23,14 @@ export type FixedMode = SequenceFixedMode | PairCycleFixedMode;
 
 export const fixedModes: readonly FixedMode[] = [
   {
-    id: 'fate-ten',
+    id: 'fate-eight',
     kind: 'sequence',
     themeId: 'adventure',
-    name: '命运十抽',
-    description: '第 4、8 次魔鬼；第 1–3、5–7 次各 1 张复活；天使、提示、连唱各至少 1 次',
+    name: '命运八抽',
+    description: '第 5–8 抽仅 1 张魔鬼；第 1–3 抽仅 1 张复活；第 3–6 抽仅 1 张轻松；天使、提示、连唱各至少 1 张',
     icon: '✦',
-    totalDraws: 10,
-    forcedResults: { 4: 0, 8: 0 },
+    totalDraws: 8,
+    forcedResults: {},
     excludedResults: [0, 4],
   },
   {
@@ -38,7 +38,7 @@ export const fixedModes: readonly FixedMode[] = [
     kind: 'sequence',
     themeId: 'adventure-2',
     name: '命运四抽',
-    description: '勇者大闯关②：四张卡各抽 1 次，随机额外触发 1 次轻松卡',
+    description: '勇者大闯关：四张卡各抽 1 次，随机额外触发 1 次轻松卡',
     icon: '✦',
     totalDraws: 4,
     forcedResults: {},
@@ -54,17 +54,12 @@ export const fixedModes: readonly FixedMode[] = [
   },
 ];
 
-export const createFateTenRevivalDraws = (random = Math.random): readonly [number, number] => [
-  1 + Math.floor(random() * 3),
-  5 + Math.floor(random() * 3),
-];
-
-export const createFateTenDrawSequence = (random = Math.random): readonly number[] => {
-  const results = Array<number>(10).fill(-1);
-  const revivalDraws = createFateTenRevivalDraws(random);
-  results[3] = 0;
-  results[7] = 0;
-  revivalDraws.forEach(drawNumber => { results[drawNumber - 1] = 4; });
+export const createFateEightDrawSequence = (random = Math.random): readonly number[] => {
+  const results = Array<number>(8).fill(-1);
+  const devilDraw = 5 + Math.floor(random() * 4);
+  const revivalDraw = 1 + Math.floor(random() * 3);
+  results[devilDraw - 1] = 0;
+  results[revivalDraw - 1] = 4;
 
   // Six open positions: guarantee angel, hint, and singing once, then vary the other three.
   const remaining = [1, 2, 3, ...Array.from({ length: 3 }, () => 1 + Math.floor(random() * 3))];
@@ -77,7 +72,7 @@ export const createFateTenDrawSequence = (random = Math.random): readonly number
 };
 
 export const createFixedModeDrawSequence = (mode: SequenceFixedMode, random = Math.random): readonly number[] | null => {
-  if (mode.id === 'fate-ten') return createFateTenDrawSequence(random);
+  if (mode.id === 'fate-eight') return createFateEightDrawSequence(random);
   if (mode.id !== 'fate-four') return null;
   const results = [0, 1, 2, 3];
   for (let index = results.length - 1; index > 0; index--) {

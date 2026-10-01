@@ -23,9 +23,9 @@ test('falls back to the default theme when a saved theme id is unknown', () => {
 test('adventure II keeps the original presentation with its own four-card set', () => {
   const original = getThemeById('adventure');
   const second = getThemeById('adventure-2');
-  assert.equal(second.name, '勇者大闯关②');
+  assert.equal(second.name, '勇者大闯关');
   assert.ok(isAdventureTheme(second.id));
-  assert.equal(second.title, '勇者大闯关②');
+  assert.equal(second.title, '勇者大闯关');
   assert.deepEqual(second.cards.map(card => card.title), ['魔鬼卡', '天使卡', '提示卡', '连唱卡']);
   assert.deepEqual(second.cards.slice(0, 3), original.cards.slice(0, 3));
   assert.deepEqual(second.wheel.colors, original.wheel.colors.slice(0, 4));

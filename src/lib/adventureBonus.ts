@@ -4,19 +4,16 @@ export const drawAdventureBonus = (random = Math.random()): 0 | 1 | null =>
 
 const BONUS_COOLDOWN_DRAWS = 3;
 
-// 命运十抽每半轮各安排一张轻松卡，间隔仍遵守普通模式的三抽冷却。
-export const createFateTenBonusSchedule = (random = Math.random): ReadonlyArray<0 | 1 | null> => {
-  const schedule: (0 | 1 | null)[] = Array(11).fill(null);
-  const firstDraw = 1 + Math.floor(random() * 5);
-  const secondStart = Math.max(6, firstDraw + BONUS_COOLDOWN_DRAWS + 1);
-  const secondDraw = secondStart + Math.floor(random() * (11 - secondStart));
-  schedule[firstDraw] = random() < 0.5 ? 0 : 1;
-  schedule[secondDraw] = random() < 0.5 ? 0 : 1;
+// 命运八抽在第 3–6 抽中预定唯一一张轻松卡。
+export const createFateEightBonusSchedule = (random = Math.random): ReadonlyArray<0 | 1 | null> => {
+  const schedule: (0 | 1 | null)[] = Array(9).fill(null);
+  const drawNumber = 3 + Math.floor(random() * 4);
+  schedule[drawNumber] = random() < 0.5 ? 0 : 1;
   return schedule;
 };
 
 export const createFixedModeBonusSchedule = (modeId: string | undefined, random = Math.random): ReadonlyArray<0 | 1 | null> | null => {
-  if (modeId === 'fate-ten') return createFateTenBonusSchedule(random);
+  if (modeId === 'fate-eight') return createFateEightBonusSchedule(random);
   if (modeId !== 'fate-four') return null;
   const schedule: (0 | 1 | null)[] = Array(5).fill(null);
   const drawNumber = 1 + Math.floor(random() * 4);
